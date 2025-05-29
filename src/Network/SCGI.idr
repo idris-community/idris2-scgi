@@ -1,26 +1,3 @@
-||| Copyright (c) 2020 - 2025 Center for Organic and Medicinal Chemistry
-|||               Zurich University of Applied Sciences
-|||               Wädenswil, Switzerland
-|||
-||| The CyBy application consists of a web client running in the
-||| browsers of CyBy's users, and a server application dealing
-||| with the application logic.
-|||
-||| However, the CyBy server is not a full-fledged web server:
-||| Serving static content such as CyBy's start page, JS-script,
-||| and images is handled by HTTP server such as
-||| [Apache HTTP Server](https://httpd.apache.org/) or [nginx](https://nginx.org/en/).
-||| In addition, the HTTP server takes care of security-related stuff
-||| like serving the CyBy web page over an encrypted connection.
-|||
-||| To access the CyBy-specific functionality such as data queries or
-||| updates, user authentification and authorization, the HTTP server
-||| acts as a proxy forwarding all CyBy specific requests to the
-||| CyBy server running locally on the same machine as the HTTP server
-||| using the [SCGI](https://en.wikipedia.org/wiki/Simple_Common_Gateway_Interface).
-|||
-||| This module and its submodules provide the functionality necessary
-||| to run a server behind a HTTP proxy.
 module Network.SCGI
 
 import Data.ByteString
