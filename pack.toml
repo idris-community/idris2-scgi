@@ -2,3 +2,8 @@
 type   = "local"
 path   = "."
 ipkg   = "scgi.ipkg"
+
+[custom.all.scgi-example]
+type   = "local"
+path   = "example"
+ipkg   = "scgi-example.ipkg"

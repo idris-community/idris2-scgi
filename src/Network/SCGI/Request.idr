@@ -56,23 +56,6 @@ record URI where
   path   : Path Abs
   query  : SortedMap String String
 
-||| Drops the unineresting prefixes from an absolute URI
-||| path.
-|||
-||| In CyBy, a URI that gets sent to the server application looks
-||| like so: "/some/prefix/scgi-bin/rest?queries" where "/some/prefix"
-||| depends on the specifics of the system we are running on. When interpreting
-||| URIs, we are only interested in the remainder, so this is what we keep here
-||| here.
-export
-afterScgibin : Path Abs -> List Body
-afterScgibin (PAbs _ sb) = go [] sb
-  where
-    go : List Body -> SnocList Body -> List Body
-    go xs [<]                = xs
-    go xs (sx :< "scgi-bin") = xs
-    go xs (sx :< x)          = go (x::xs) sx
-
 query : String -> Maybe (SortedMap String String)
 query = map SortedMap.fromList . traverse pair . forget . split ('&' ==)
 

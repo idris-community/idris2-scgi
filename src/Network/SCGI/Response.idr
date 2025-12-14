@@ -35,6 +35,14 @@ responseBytes (RP hs bs) =
 --          Common Responses
 --------------------------------------------------------------------------------
 
+export %inline
+response : List (String,String) -> List ByteString -> Response
+response ps = RP (SM.fromList ps)
+
+export %inline
+response1 : List (String,String) -> ByteString -> Response
+response1 ps = response ps . pure
+
 export
 statusOK : (String,String)
 statusOK = ("Status", "200 OK")
@@ -42,6 +50,10 @@ statusOK = ("Status", "200 OK")
 export
 json : (String,String)
 json = ("content-type", "application/json")
+
+export
+plain : (String,String)
+plain = ("content-type", "text/plain")
 
 export
 html : (String,String)
@@ -63,7 +75,7 @@ bytesOK = SM.fromList [statusOK]
 export
 notFound : Response
 notFound =
-  RP (SM.fromList [("Status", "404 Not Found"), html]) . pure $ fromString
+  response1 [("Status", "404 Not Found"), html]
     """
     <!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
     <html>
@@ -78,7 +90,7 @@ notFound =
 export
 forbidden : Response
 forbidden =
-  RP (SM.fromList [("Status", "403 Forbidden"), html]) . pure $ fromString
+  response1 [("Status", "403 Forbidden"), html]
     """
     <!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
     <html>

@@ -13,25 +13,11 @@ import public IO.Async.Loop.Posix
 import public IO.Async.Posix
 import public Network.SCGI.Config
 import public Network.SCGI.Error
+import public Network.SCGI.Prog
 import public Network.SCGI.Request
 import public Network.SCGI.Response
 
 %default total
-
-||| An SCGI server programm
-public export
-0 SCGIProg : List Type -> Type -> Type
-SCGIProg = Async Poll
-
-||| A CyBy server programm represented as a `Pull`
-public export
-0 SCGIPull : Type -> List Type -> Type -> Type
-SCGIPull = Pull SCGIProg
-
-||| A CyBy server programm represented as a `Stream`
-public export
-0 SCGIStream : List Type -> Type -> Type
-SCGIStream = Stream SCGIProg
 
 0 Bytes : List Type -> Type
 Bytes es = SCGIStream es ByteString
