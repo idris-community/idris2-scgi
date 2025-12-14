@@ -50,7 +50,7 @@ parameters {auto conf : Config}
 
     where
       go : Headers -> List ByteString -> Headers
-      go hs (x::y::t) = go (insert (toString x) (toString y) hs) t
+      go hs (x::y::t) = go (insert x y hs) t
       go hs _         = hs
 
   request : Bytes es -> SCGIPull o es Request

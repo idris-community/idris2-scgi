@@ -1,8 +1,9 @@
 module Network.SCGI.Response
 
+import Data.Buffer
 import Data.ByteString
+import Data.List
 import Data.SortedMap as SM
-import Data.String
 import Network.SCGI.Request
 
 %default total
@@ -22,44 +23,45 @@ record Response where
   headers : Headers
   content : List ByteString
 
-crlf : String
+crlf : ByteString
 crlf = "\r\n"
 
 export
 responseBytes : Response -> List ByteString
 responseBytes (RP hs bs) =
-  let h := intersperse crlf $ map (\(h,v) => "\{h}:\{v}") (SM.toList hs)
-   in fromString "\{fastConcat h}\r\n\r\n" :: bs
+  case kvList hs of
+    [] => crlf :: crlf :: bs 
+    ps => (ps >>= \(h,v) => [h,":",v,crlf]) ++ crlf :: bs
 
 --------------------------------------------------------------------------------
 --          Common Responses
 --------------------------------------------------------------------------------
 
 export %inline
-response : List (String,String) -> List ByteString -> Response
+response : List (ByteString,ByteString) -> List ByteString -> Response
 response ps = RP (SM.fromList ps)
 
 export %inline
-response1 : List (String,String) -> ByteString -> Response
+response1 : List (ByteString,ByteString) -> ByteString -> Response
 response1 ps = response ps . pure
 
 export
-statusOK : (String,String)
+statusOK : (ByteString,ByteString)
 statusOK = ("Status", "200 OK")
 
 export
-json : (String,String)
+json : (ByteString,ByteString)
 json = ("content-type", "application/json")
 
 export
-plain : (String,String)
+plain : (ByteString,ByteString)
 plain = ("content-type", "text/plain")
 
 export
-html : (String,String)
+html : (ByteString,ByteString)
 html = ("content-type", "text/html")
 
-sdf, ods, csv : (String,String)
+sdf, ods, csv : (ByteString,ByteString)
 sdf = ("content-type", "chemical/x-mdl-sdfile")
 ods = ("content-type", "application/vnd.oasis.opendocument.spreadsheet")
 csv = ("content-type", "text/csv")

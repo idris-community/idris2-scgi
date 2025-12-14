@@ -3,12 +3,13 @@ module Network.SCGI.Request
 import Control.Monad.MErr
 import Data.Buffer
 import Data.ByteString
-import Data.FilePath
 import Data.SortedMap
 import Data.String
 import Derive.Prelude
 import Network.SCGI.Config
 import Network.SCGI.Error
+import public Network.SCGI.URI
+import Text.ILex
 import System.Clock
 
 %default total
@@ -22,7 +23,7 @@ import System.Clock
 ||| header values.
 public export
 0 Headers : Type
-Headers = SortedMap String String
+Headers = SortedMap ByteString ByteString
 
 --------------------------------------------------------------------------------
 --          Method
@@ -41,44 +42,10 @@ Interpolation Method where interpolate = show
 export
 requestMethod : Headers -> Method
 requestMethod hs =
-  case lookup "REQUEST_METHOD" hs of
+  case toString <$> lookup "REQUEST_METHOD" hs of
     Just "GET"  => GET
     Just "POST" => POST
     _           => UNKNOWN
-
---------------------------------------------------------------------------------
---          URI
---------------------------------------------------------------------------------
-
-public export
-record URI where
-  constructor MkURI
-  path   : Path Abs
-  query  : SortedMap String String
-
-query : String -> Maybe (SortedMap String String)
-query = map SortedMap.fromList . traverse pair . forget . split ('&' ==)
-
-  where
-    pair : String -> Maybe (String,String)
-    pair s =
-      let (x,y)         := break ('=' ==) s
-          StrCons '=' t := strM y | _ => Nothing
-       in Just (x,t)
-
-parsePth : String -> Maybe (Path Abs)
-parsePth s =
-  case [<] <>< unpack s of
-    ss :< '/' => parse $ pack (ss <>> [])
-    _         => parse s
-
-export
-parseURI : String -> Maybe URI
-parseURI s =
-  case forget $ split ('?' ==) s of
-    [p,q] => [| MkURI (parsePth p) (query q) |]
-    [p]   => [| MkURI (parsePth p) (pure empty) |]
-    _     => Nothing
 
 --------------------------------------------------------------------------------
 --          RequestTime
@@ -116,7 +83,7 @@ Interpolation ContentType where
 export
 contentType : Headers -> ContentType
 contentType hs =
-  case lookup "CONTENT_TYPE" hs of
+  case toString <$> lookup "CONTENT_TYPE" hs of
     Just "application/json" => JSON
     Just o                  =>
       if "multipart/form-data; boundary=" `isPrefixOf` o
@@ -209,7 +176,7 @@ parameters {auto c    : Config}
   export
   contentLength : Headers -> f es Nat
   contentLength hs =
-    let sz := maybe Z cast $ lookup "CONTENT_LENGTH" hs
+    let sz := maybe Z (cast . decimal) $ lookup "CONTENT_LENGTH" hs
      in if sz > c.maxMsgSize then throw (LargeBody c.maxMsgSize) else pure sz
 
   ||| Gets the request URI from the headers.
