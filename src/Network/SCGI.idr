@@ -97,7 +97,7 @@ ierror x = stderrLn (interpolate x)
 |||              HTTP responses
 export covering
 serve : Config -> (Request -> SCGIProg ServerErrs Response) -> SCGIProg [] ()
-serve c@(C a p _ _ co) run =
+serve c@(C a p _ _ co _ _) run =
   mpull $ handle handlers $ 
     foreachPar co doServe (acceptOn AF_INET SOCK_STREAM $ IP4 a p)
 

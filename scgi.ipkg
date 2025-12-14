@@ -5,11 +5,14 @@ brief      = "Utilities for writing SCGI servers in Idris2"
 version    = 0.7.0
 sourcedir  = "src"
 depends    = base         >= 0.7.0
+           , ansi
            , streams-posix
            , async-epoll
 
 modules = Network.SCGI
         , Network.SCGI.Config
         , Network.SCGI.Error
+        , Network.SCGI.Logging
         , Network.SCGI.Request
         , Network.SCGI.Response
+        , Network.SCGI.Service

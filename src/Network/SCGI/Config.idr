@@ -4,6 +4,7 @@ import Data.ByteString
 import Data.Nat
 import Data.Vect
 import Network.SCGI.Error
+import Network.SCGI.Logging
 
 %default total
 
@@ -30,6 +31,12 @@ record Config where
   ||| Number of concurrent requests
   concurrent          : Nat
 
+  ||| Logging facility
+  baseLogger          : Logger
+
+  ||| Minimal log level
+  level               : LogLevel
+
   {auto 0 prf         : IsSucc concurrent}
 
 --------------------------------------------------------------------------------
@@ -38,11 +45,17 @@ record Config where
 
 ||| Default config for testing the cyby server locally
 export
-local : Config
+local : (lg : ConsoleOut) => Config
 local = C {
     address        = [0,0,0,0]
   , port           = 4000
   , maxMsgSize     = 0xffffff
   , maxHeaderSize  = 0xfff0
   , concurrent     = 10
+  , baseLogger     = colorConsoleLogger lg
+  , level          = Info
   }
+
+export
+(.logger) : Config -> Logger
+c.logger = filter c.level c.baseLogger
