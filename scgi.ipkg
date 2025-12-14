@@ -6,8 +6,9 @@ version    = 0.7.0
 sourcedir  = "src"
 depends    = base         >= 0.7.0
            , ansi
-           , streams-posix
            , async-epoll
+           , ilex
+           , streams-posix
 
 modules = Network.SCGI
         , Network.SCGI.Config
@@ -17,3 +18,4 @@ modules = Network.SCGI
         , Network.SCGI.Request
         , Network.SCGI.Response
         , Network.SCGI.Service
+        , Network.SCGI.URI
