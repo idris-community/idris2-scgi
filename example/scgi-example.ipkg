@@ -1,0 +1,10 @@
+package scgi-example
+
+authors    = "stefan-hoeck"
+brief      = "Example SGCI application"
+version    = 0.7.0
+sourcedir  = "src"
+depends    = scgi
+
+main       = Main
+executable = "scgi-example"
