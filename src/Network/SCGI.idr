@@ -22,10 +22,6 @@ import public Network.SCGI.Response
 0 Bytes : List Type -> Type
 Bytes es = SCGIStream es ByteString
 
-public export
-0 ServerErrs : List Type
-ServerErrs = [Errno, SCGIErr]
-
 parameters {auto conf : Config}
            {auto has  : Has SCGIErr es}
 
@@ -64,7 +60,6 @@ parameters {auto conf : Config}
     body        <- foldGet (:<) [<] (C.take cl $ C.drop 1 rem2)
     pure $ RQ
       head
-      (requestMethod head)
       u
       cl
       (contentType head)

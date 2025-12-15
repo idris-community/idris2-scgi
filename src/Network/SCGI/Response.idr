@@ -23,6 +23,10 @@ record Response where
   headers : Headers
   content : List ByteString
 
+export
+addHeader : (ByteString,ByteString) -> Response -> Response
+addHeader (x,y) = {headers $= insert x y}
+
 crlf : ByteString
 crlf = "\r\n"
 
@@ -73,6 +77,10 @@ jsonOK = SM.fromList [statusOK, json]
 export
 bytesOK : Headers
 bytesOK = SM.fromList [statusOK]
+
+export
+ok : Response
+ok = addHeader statusOK $ RP empty []
 
 export
 notFound : Response

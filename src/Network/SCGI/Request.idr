@@ -26,28 +26,6 @@ public export
 Headers = SortedMap ByteString ByteString
 
 --------------------------------------------------------------------------------
---          Method
---------------------------------------------------------------------------------
-
-public export
-data Method = GET | POST | UNKNOWN
-
-%runElab derive "Method" [Show,Eq,Ord]
-
-export %inline
-Interpolation Method where interpolate = show
-
-
-||| Gets the request method from the headers.
-export
-requestMethod : Headers -> Method
-requestMethod hs =
-  case toString <$> lookup "REQUEST_METHOD" hs of
-    Just "GET"  => GET
-    Just "POST" => POST
-    _           => UNKNOWN
-
---------------------------------------------------------------------------------
 --          RequestTime
 --------------------------------------------------------------------------------
 
@@ -101,9 +79,6 @@ record Request where
 
   ||| The SCGI headers as sent by the proxy server
   headers     : Headers
-
-  ||| http method of the request
-  method      : Method
 
   ||| URI of the request
   uri         : URI

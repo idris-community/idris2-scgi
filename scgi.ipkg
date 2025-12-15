@@ -19,3 +19,9 @@ modules = Network.SCGI
         , Network.SCGI.Response
         , Network.SCGI.Service
         , Network.SCGI.URI
+
+        , HTTP.API
+        , HTTP.API.Serve
+        , HTTP.API.Path
+        , HTTP.API.Query
+        , HTTP.API.Method

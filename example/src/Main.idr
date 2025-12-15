@@ -5,10 +5,28 @@ import Data.SortedMap
 import Data.Vect
 import IO.Async.Loop.Epoll
 import Network.SCGI
+import Network.SCGI.Error
 import Network.SCGI.Logging
+import HTTP.API.Serve
+import HTTP.API.Path
 
 %default total
 %hide Data.Linear.(.)
+
+0 MyServer : APIs
+MyServer =
+  [ [Path ["scgi-example", "inc", Capture Nat]]
+  , [Path ["scgi-example", "hello"]]
+  ]
+
+doServe : Logger => HList [Nat] -> SCGIProg ServerErrs (HList [])
+doServe [x] = info "Got a number: \{show x}" $> []
+
+printHello : Logger => HList [] -> SCGIProg ServerErrs (HList [])
+printHello [] = info "hello world!" $> []
+
+server : Logger => Request -> SCGIProg ServerErrs Response
+server = serveAll MyServer [doServe, printHello]
 
 settings : Config -> List String
 settings c =
@@ -17,22 +35,6 @@ settings c =
   , "  Address:  \{show $ c.address}"
   , "  Port:     \{show c.port}"
   ]
-
-dispURI : URI -> String
-dispURI u =
-  let p := fastConcat . intersperse "/" . map toString $ u.path
-      q := fastConcat . intersperse "&" . map toQuery . kvList $ u.queries
-   in "\{p}?\{q}"
-  where
-    toQuery : (ByteString,ByteString) -> String
-    toQuery (x,y) = "\{toString x}=\{toString y}"
-
-server : Logger => Request -> SCGIProg ServerErrs Response
-server r = Prelude.do
-  info "Got a connection at: \{dispURI r.uri}"
-  trace "Headers:"
-  for_ (kvList r.headers) $ \(h,v) => trace "\{toString h}: \{toString v}"
-  pure (response1 [statusOK, plain] "hello SCGI-world\n")
 
 covering
 prog : SCGIProg [] ()
