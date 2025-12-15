@@ -5,10 +5,36 @@ import Data.SortedMap
 import Data.Vect
 import IO.Async.Loop.Epoll
 import Network.SCGI
+import Network.SCGI.Error
 import Network.SCGI.Logging
+import HTTP.API
 
 %default total
 %hide Data.Linear.(.)
+
+SCGI : (ps : List Part) -> RequestPath (PartsTypes ps)
+SCGI ps = Path ("scgi-example"::ps)
+
+0 MyServer : APIs
+MyServer =
+  [ [GET [String] String, SCGI ["inc", Capture Nat]]
+  , [GET [String] String, SCGI ["add", Capture Nat]]
+  , [GET [String] String, SCGI ["hello", Capture String]]
+  ]
+
+inc : Logger => HList [Nat] -> SCGIProg ServerErrs (HList [String])
+inc [x] = pure ["New number: \{show $ x+1}\n"]
+
+add : Logger => IORef Nat -> HList [Nat] -> SCGIProg ServerErrs (HList [String])
+add ref [x] = Prelude.do
+  v <- lift1 $ modAndRead1 ref (+x)
+  pure ["Added \{show x}. New number is: \{show v}\n"]
+
+hello : Logger => HList [String] -> SCGIProg ServerErrs (HList [String])
+hello [s] = pure ["hello \{s}!\n"]
+
+server : Logger => IORef Nat -> Request -> SCGIProg ServerErrs Response
+server ref req = serveAll MyServer [inc, add ref, hello] req
 
 settings : Config -> List String
 settings c =
@@ -18,30 +44,14 @@ settings c =
   , "  Port:     \{show c.port}"
   ]
 
-dispURI : URI -> String
-dispURI u =
-  let p := fastConcat . intersperse "/" . map toString $ u.path
-      q := fastConcat . intersperse "&" . map toQuery . kvList $ u.queries
-   in "\{p}?\{q}"
-  where
-    toQuery : (ByteString,ByteString) -> String
-    toQuery (x,y) = "\{toString x}=\{toString y}"
-
-server : Logger => Request -> SCGIProg ServerErrs Response
-server r = Prelude.do
-  info "Got a connection at: \{dispURI r.uri}"
-  trace "Headers:"
-  for_ (kvList r.headers) $ \(h,v) => trace "\{toString h}: \{toString v}"
-  pure (response1 [statusOK, plain] "hello SCGI-world\n")
-
 covering
 prog : SCGIProg [] ()
 prog =
   use [stdOut] $ \[console] => Prelude.do
-    let conf := {level := Info} (local @{console})
-        log  := conf.logger
-    traverse_ (\x => info x) (settings conf)
-    serve conf server
+    let log := filter Info $ colorConsoleLogger console
+    traverse_ (\x => info x) (settings local)
+    ref <- newref Z
+    serve local (server ref)
 
 covering
 main : IO ()

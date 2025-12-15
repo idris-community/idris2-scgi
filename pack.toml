@@ -7,3 +7,9 @@ ipkg   = "scgi.ipkg"
 type   = "local"
 path   = "example"
 ipkg   = "scgi-example.ipkg"
+
+[custom.all.bytestring]
+type   = "git"
+url    = "https://github.com/stefan-hoeck/idris2-bytestring"
+commit = "latest:main"
+ipkg   = "bytestring.ipkg"

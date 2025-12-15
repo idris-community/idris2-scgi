@@ -13,6 +13,7 @@ import Text.ILex
 import System.Clock
 
 %default total
+%hide Data.Linear.(.)
 %language ElabReflection
 
 --------------------------------------------------------------------------------
@@ -24,28 +25,6 @@ import System.Clock
 public export
 0 Headers : Type
 Headers = SortedMap ByteString ByteString
-
---------------------------------------------------------------------------------
---          Method
---------------------------------------------------------------------------------
-
-public export
-data Method = GET | POST | UNKNOWN
-
-%runElab derive "Method" [Show,Eq,Ord]
-
-export %inline
-Interpolation Method where interpolate = show
-
-
-||| Gets the request method from the headers.
-export
-requestMethod : Headers -> Method
-requestMethod hs =
-  case toString <$> lookup "REQUEST_METHOD" hs of
-    Just "GET"  => GET
-    Just "POST" => POST
-    _           => UNKNOWN
 
 --------------------------------------------------------------------------------
 --          RequestTime
@@ -67,29 +46,21 @@ record RequestTime where
 --------------------------------------------------------------------------------
 
 public export
-data ContentType : Type where
-  JSON      : ContentType
-  Multipart : (sep : String) -> ContentType
-  Other     : String -> ContentType
-  None      : ContentType
+record MimeType where
+  constructor MT
+  type  : String
+  param : Maybe (String,String)
 
-export
-Interpolation ContentType where
-  interpolate JSON            = "application/json"
-  interpolate (Multipart sep) = "multipart/form-data; boundary=\{sep}"
-  interpolate (Other s)       = s
-  interpolate None            = "none"
+toMimeType : ByteString -> Maybe MimeType
+toMimeType bs =
+  case trim <$> split 59 bs of -- 59 = ;
+    [mt,p] => case (ByteString.toString . trim) <$> split 61 p of
+      [pa,v] => Just (MT (toLower $ toString mt) (Just (toLower pa, v)))
+      _      => Nothing
+    [mt]   => Just (MT (toLower $ toString mt) Nothing)
+    _      => Nothing
 
-export
-contentType : Headers -> ContentType
-contentType hs =
-  case toString <$> lookup "CONTENT_TYPE" hs of
-    Just "application/json" => JSON
-    Just o                  =>
-      if "multipart/form-data; boundary=" `isPrefixOf` o
-         then Multipart $ pack . snd . splitAt 30 $ unpack o
-         else Other o
-    Nothing                 => None
+--  interpolate JSON            = "application/json"
 
 ||| A request sent from the client listing the SCGI headers provided by
 ||| the proxy server, the total content size, and an IO action for
@@ -102,17 +73,11 @@ record Request where
   ||| The SCGI headers as sent by the proxy server
   headers     : Headers
 
-  ||| http method of the request
-  method      : Method
-
   ||| URI of the request
   uri         : URI
 
   ||| The total size of the content in case of a POST request
   contentSize : Nat
-
-  ||| The content type (if any) of the payload
-  contentType : ContentType
 
   ||| Timestamp when the request arrived at the server
   timestamp   : RequestTime
@@ -123,6 +88,26 @@ record Request where
 export %inline
 stringContent : Request -> String
 stringContent r = toString r.content
+
+export %inline
+contentType : Request -> Maybe MimeType
+contentType r = Prelude.do
+  bs <- lookup "CONTENT_TYPE" r.headers
+  toMimeType bs
+
+export
+accept : Request -> List MimeType
+accept =
+    mapMaybe toMimeType
+  . maybe [] (map trim . split 44)
+  . lookup "HTTP_ACCEPT"
+  . headers
+
+export
+acceptsMedia : Request -> String -> Bool
+acceptsMedia r s =
+ let ts := accept r
+  in any ((s ==) . type) ts || any (("*/*" ==) . type) ts 
 
 --------------------------------------------------------------------------------
 --          Multipart Requests

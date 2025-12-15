@@ -8,6 +8,7 @@ depends    = base         >= 0.7.0
            , ansi
            , async-epoll
            , ilex
+           , json-simple
            , streams-posix
 
 modules = Network.SCGI
@@ -19,3 +20,9 @@ modules = Network.SCGI
         , Network.SCGI.Response
         , Network.SCGI.Service
         , Network.SCGI.URI
+
+        , HTTP.API
+        , HTTP.API.Serve
+        , HTTP.API.Path
+        , HTTP.API.Query
+        , HTTP.API.Method
