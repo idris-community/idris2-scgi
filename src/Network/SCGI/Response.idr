@@ -54,14 +54,6 @@ statusOK : (ByteString,ByteString)
 statusOK = ("Status", "200 OK")
 
 export
-json : (ByteString,ByteString)
-json = ("content-type", "application/json")
-
-export
-plain : (ByteString,ByteString)
-plain = ("content-type", "text/plain")
-
-export
 html : (ByteString,ByteString)
 html = ("content-type", "text/html")
 
@@ -69,14 +61,6 @@ sdf, ods, csv : (ByteString,ByteString)
 sdf = ("content-type", "chemical/x-mdl-sdfile")
 ods = ("content-type", "application/vnd.oasis.opendocument.spreadsheet")
 csv = ("content-type", "text/csv")
-
-export
-jsonOK : Headers
-jsonOK = SM.fromList [statusOK, json]
-
-export
-bytesOK : Headers
-bytesOK = SM.fromList [statusOK]
 
 export
 ok : Response

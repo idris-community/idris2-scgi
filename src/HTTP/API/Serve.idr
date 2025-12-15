@@ -115,39 +115,3 @@ serveAll []         []              req = pure notFound
 serveAll (hl :: as) ((::) {hl} f x) req = Prelude.do
   Just res <- serve1 hl f req | _ => serveAll as x req
   pure res
-
-
-data Foo = MkFoo
-
-data Bar = MkBar
-
-Serve Foo where
-  InTypes           = [Nat]
-  OutTypes          = []
-  outs              = %search
-  fromRequest _ _   = pure (Just [12])
-  adjResponse _ _ _ = pure
-
-msg : Bool -> ByteString
-msg True  = "Goobye World\n"
-msg False = "Hello World\n"
-
-Serve Bar where
-  InTypes                  = [Bool,String]
-  OutTypes                 = [Bool]
-  outs                     = %search
-  fromRequest _ _          = pure (Just [False, "bar"])
-  adjResponse _ [b] _ resp = pure $ {content := [msg b]} (addHeader plain resp)
-
-runTest : Logger => HList [Nat,Bool,String] -> SCGIProg ServerErrs (HList [Bool])
-runTest [n,b,s] = Prelude.do
-  info "Number is: \{show n}"
-  info "String is: \{s}"
-  pure [not b]
-
-0 TestServer : APIs
-TestServer = [[MkFoo,MkBar]]
-
-export
-test : Logger => Request -> SCGIProg ServerErrs Response
-test = serveAll TestServer [runTest]
