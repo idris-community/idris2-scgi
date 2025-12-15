@@ -13,6 +13,14 @@ import Network.SCGI.Request
 --------------------------------------------------------------------------------
 
 public export
+0 Text : Type
+Text = String
+
+public export
+0 Octett : Type
+Octett = ByteString
+
+public export
 interface EncodeVia (0 from, to : Type) where
   encodeAs : from -> to
   toBytes  : to -> List ByteString
@@ -79,10 +87,14 @@ canUseMethod (M m) all r =
   Just m == lookup "REQUEST_METHOD" r.headers &&
   any (acceptsMedia r) (forget $ mapProperty (\x => mediaType @{x}) all)
 
-encode : (val : t) -> Request -> All (EncodeVia t) ts -> List ByteString
-encode v r []        = [] -- impossible
-encode v r (e :: es) =
-  if acceptsMedia r (mediaType @{e}) then encodeVia v e else encode v r es
+encode : t -> Request -> All (EncodeVia t) ts -> Response -> Response
+encode v r []        rs = rs -- impossible
+encode v r (e :: es) rs =
+  case acceptsMedia r (mediaType @{e}) of
+    False => encode v r es rs
+    True  =>
+      {content := encodeVia v e} $
+        addHeader ("content-type", fromString $ mediaType @{e}) rs
 
 public export
 (all : All (EncodeVia t) ts) => Serve (Method ts t) where
@@ -90,7 +102,7 @@ public export
   OutTypes = [t]
   outs     = %search
   fromRequest m r = pure $ if canUseMethod m all r then Just [] else Nothing
-  adjResponse m [v] req = pure . {content := encode v req all}
+  adjResponse m [v] req = pure . encode v req all
 
 public export
 Serve Method' where

@@ -17,9 +17,9 @@ SCGI ps = Path ("scgi-example"::ps)
 
 0 MyServer : APIs
 MyServer =
-  [ [GET [String] String, SCGI ["inc", Capture Nat]]
-  , [GET [String] String, SCGI ["add", Capture Nat]]
-  , [GET [String] String, SCGI ["hello", Capture String]]
+  [ [GET [Text] String, SCGI ["inc", Capture Nat]]
+  , [GET [Text] String, SCGI ["add", Capture Nat]]
+  , [GET [Text] String, SCGI ["hello", Capture String]]
   ]
 
 inc : Logger => HList [Nat] -> SCGIProg ServerErrs (HList [String])
