@@ -59,8 +59,8 @@ convertPRequest (Path parts) = convertRequest parts
 
 public export
 Serve (RequestPath ts) where
-  InTypes  = ts
-  OutTypes = []
-  outs     = []
-  fromRequest ps r = pure $ convertPRequest ps r.uri.path
-  adjResponse _ _  = pure
+  InTypes            = ts
+  OutTypes           = []
+  outs               = []
+  fromRequest ps r   = pure $ convertPRequest ps r.uri.path
+  adjResponse _ _  _ = pure

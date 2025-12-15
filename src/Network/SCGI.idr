@@ -13,6 +13,7 @@ import public IO.Async.Loop.Posix
 import public IO.Async.Posix
 import public Network.SCGI.Config
 import public Network.SCGI.Error
+import public Network.SCGI.Logging
 import public Network.SCGI.Prog
 import public Network.SCGI.Request
 import public Network.SCGI.Response
@@ -24,6 +25,7 @@ Bytes es = SCGIStream es ByteString
 
 parameters {auto conf : Config}
            {auto has  : Has SCGIErr es}
+           {auto log  : Logger}
 
   -- An SCGI request starts with the header size (in decimal)
   -- followed by a colon (ASCII: 58): "75:" followed by a header of
@@ -55,20 +57,11 @@ parameters {auto conf : Config}
     (hsz, rem1) <- headerSize p
     when (hsz > conf.maxHeaderSize) (throw $ LargeHeader conf.maxHeaderSize)
     (head,rem2) <- header hsz rem1
+    exec $ for_ (kvList head) $ \(k,v) => debug "\{k}: \{v}"
     cl          <- contentLength head
     u           <- requestURI head
     body        <- foldGet (:<) [<] (C.take cl $ C.drop 1 rem2)
-    pure $ RQ
-      head
-      u
-      cl
-      (contentType head)
-      (RT timestamp)
-      (fastConcat $ body <>> [])
-
-export %inline
-ierror : Interpolation a => a -> SCGIProg es ()
-ierror x = stderrLn (interpolate x)
+    pure $ RQ head u cl (RT timestamp) (fastConcat $ body <>> [])
 
 ||| This is the end of the world where we serve the
 ||| SCGI-application. All we need is a bit of information to get going:
@@ -77,8 +70,8 @@ ierror x = stderrLn (interpolate x)
 ||| @ run      : core SCGI application converting SCGI request to
 |||              HTTP responses
 export covering
-serve : Config -> (Request -> SCGIProg ServerErrs Response) -> SCGIProg [] ()
-serve c@(C a p _ _ co _ _) run =
+serve : Logger => Config -> (Request -> SCGIProg ServerErrs Response) -> SCGIProg [] ()
+serve c@(C a p _ _ co) run =
   mpull $ handle handlers $ 
     foreachPar co doServe (acceptOn AF_INET SOCK_STREAM $ IP4 a p)
 
@@ -99,5 +92,5 @@ serve c@(C a p _ _ co _ _) run =
 ||| Don't use this if you are planning to serve more than a handful
 ||| connections concurrently.
 export covering
-serveIO : Config -> (Request -> IO Response) -> IO ()
+serveIO : Logger => Config -> (Request -> IO Response) -> IO ()
 serveIO c run = simpleApp (serve c $ liftIO . run)

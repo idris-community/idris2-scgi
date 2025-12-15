@@ -20,7 +20,12 @@ interface Serve (0 a : Type) where
   0 OutTypes  : List Type
   outs        : TList OutTypes
   fromRequest : a -> Request -> SCGIProg ServerErrs (Maybe $ HList InTypes)
-  adjResponse : a -> HList OutTypes -> Response -> SCGIProg ServerErrs Response
+  adjResponse :
+       a
+    -> HList OutTypes
+    -> Request
+    -> Response
+    -> SCGIProg ServerErrs Response
 
 public export
 0 AllInTypes : All Serve ts -> List Type
@@ -57,13 +62,14 @@ putOuts :
      (all : All Serve ts)
   -> HList ts
   -> HList (AllOutTypes all)
+  -> Request
   -> Response
   -> SCGIProg ServerErrs Response
-putOuts []        []      [] resp = pure resp
-putOuts (a :: as) (x::xs) vs resp = Prelude.do
+putOuts []        []      [] req resp = pure resp
+putOuts (a :: as) (x::xs) vs req resp = Prelude.do
   let (ts,rem) := splitHList (outs @{a}) vs
-  oa <- adjResponse @{a} x ts resp
-  putOuts as xs rem oa
+  r2 <- adjResponse @{a} x ts req resp
+  putOuts as xs rem req r2
 
 namespace APIs
 
@@ -96,7 +102,7 @@ serve1 :
 serve1 @{all} api f req = Prelude.do
   Just ins  <- getIns all api req | _ => pure Nothing
   outs      <- f ins
-  Just <$> putOuts all api outs ok
+  Just <$> putOuts all api outs req ok
 
 export
 serveAll :
@@ -116,22 +122,22 @@ data Foo = MkFoo
 data Bar = MkBar
 
 Serve Foo where
-  InTypes       = [Nat]
-  OutTypes      = []
-  outs          = %search
-  fromRequest _ _ = pure (Just [12])
-  adjResponse _ _ = pure
+  InTypes           = [Nat]
+  OutTypes          = []
+  outs              = %search
+  fromRequest _ _   = pure (Just [12])
+  adjResponse _ _ _ = pure
 
 msg : Bool -> ByteString
 msg True  = "Goobye World\n"
 msg False = "Hello World\n"
 
 Serve Bar where
-  InTypes                = [Bool,String]
-  OutTypes               = [Bool]
-  outs                   = %search
-  fromRequest _ _        = pure (Just [False, "bar"])
-  adjResponse _ [b] resp = pure $ {content := [msg b]} (addHeader plain resp)
+  InTypes                  = [Bool,String]
+  OutTypes                 = [Bool]
+  outs                     = %search
+  fromRequest _ _          = pure (Just [False, "bar"])
+  adjResponse _ [b] _ resp = pure $ {content := [msg b]} (addHeader plain resp)
 
 runTest : Logger => HList [Nat,Bool,String] -> SCGIProg ServerErrs (HList [Bool])
 runTest [n,b,s] = Prelude.do
