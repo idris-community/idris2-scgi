@@ -23,22 +23,23 @@ MyServer =
   , [GET [Text] String, SCGI ["hello", Capture String]]
   ]
 
-inc : Logger => HList [Nat] -> SCGIProg ServerErrs (HList [String])
-inc [x] = pure ["New number: \{show $ x+1}\n"]
+parameters {auto log : Logger}
+  inc : Nat -> SCGIProg ServerErrs String
+  inc x = pure "New number: \{show $ x+1}\n"
 
-sum : Logger => HList [List Nat] -> SCGIProg ServerErrs (HList [String])
-sum [xs] = pure ["Total: \{show $ sum xs}\n"]
+  sum : List Nat -> SCGIProg ServerErrs String
+  sum xs = pure "Total: \{show $ Prelude.sum xs}\n"
 
-add : Logger => IORef Nat -> HList [Nat] -> SCGIProg ServerErrs (HList [String])
-add ref [x] = Prelude.do
-  v <- lift1 $ modAndRead1 ref (+x)
-  pure ["Added \{show x}. New number is: \{show v}\n"]
+  add : IORef Nat -> Nat -> SCGIProg ServerErrs String
+  add ref x = Prelude.do
+    v <- lift1 $ modAndRead1 ref (+x)
+    pure "Added \{show x}. New number is: \{show v}\n"
 
-hello : Logger => HList [String] -> SCGIProg ServerErrs (HList [String])
-hello [s] = pure ["hello \{s}!\n"]
+  hello : String -> SCGIProg ServerErrs String
+  hello s = pure "hello \{s}!\n"
 
-server : Logger => IORef Nat -> Request -> SCGIProg ServerErrs Response
-server ref req = serveAll MyServer [inc, add ref, sum, hello] req
+  server : IORef Nat -> Request -> SCGIProg ServerErrs Response
+  server ref = serveAll MyServer [inc, add ref, sum, hello]
 
 settings : Config -> List String
 settings c =
