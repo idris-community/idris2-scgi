@@ -21,6 +21,7 @@ MyServer =
   , [GET [Text] String, SCGI ["add", Capture Nat]]
   , [GET [Text] String, SCGI ["sum", Capture (List Nat)]]
   , [GET [Text] String, SCGI ["hello", Capture String]]
+  , [GET [Text] String, SCGI ["login"], Query ["user" ?? String, "password" ?? String]]
   ]
 
 parameters {auto log : Logger}
@@ -38,8 +39,12 @@ parameters {auto log : Logger}
   hello : String -> SCGIProg ServerErrs String
   hello s = pure "hello \{s}!\n"
 
+  login : String -> String -> SCGIProg ServerErrs String
+  login "stefan" "hoeck" = pure "Authentication successful\n"
+  login un       pw      = pure "Unknown user or invalid password\n"
+
   server : IORef Nat -> Request -> SCGIProg ServerErrs Response
-  server ref = serveAll MyServer [inc, add ref, sum, hello]
+  server ref = serveAll MyServer [inc, add ref, sum, hello, login]
 
 settings : Config -> List String
 settings c =
