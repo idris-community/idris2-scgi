@@ -1,34 +1,14 @@
 module HTTP.API.Path
 
-import Data.ByteString
+import public HTTP.API.Decode
 import HTTP.API.Serve
-import Text.ILex
 
 %default total
 
 public export
-interface Decode (0 a : Type) where
-  decode : ByteString -> Maybe a
-
-export %inline
-Decode ByteString where decode = Just
-
-export %inline
-Decode String where decode = Just . toString
-
-export %inline
-Decode Integer where
-  decode (BS 0 _) = Nothing
-  decode bs       = if all isDigit bs then Just (decimal bs) else Nothing
-
-export %inline
-Decode Nat where
-  decode = map integerToNat . decode
-
-public export
 data Part : Type where
   PStr : String -> Part
-  Capture : (0 t : Type) -> Decode t => Part
+  Capture : (0 t : Type) -> Part
 
 public export
 FromString Part where fromString = PStr
@@ -45,22 +25,30 @@ data RequestPath : List Type -> Type where
 
 convertRequest :
      (ps : List Part)
+  -> All DecodeMany (PartsTypes ps)
   -> List ByteString
   -> (Maybe $ HList $ PartsTypes ps)
-convertRequest []                []      = Just []
-convertRequest (PStr s    :: ys) (b::bs) =
-  if fromString s == b then convertRequest ys bs else Nothing
-convertRequest (Capture t :: ys) (b::bs) =
-  [| decode {a = t} b :: convertRequest ys bs |]
-convertRequest _                 _       = Nothing
+convertRequest [] []  [] = Just []
+convertRequest (PStr s    :: ys) as (b::bs) =
+  if fromString s == b then convertRequest ys as bs else Nothing
+convertRequest (Capture t :: ys) (a::as) bs = Prelude.do
+  (bs2,v) <- decodeMany @{a} bs
+  vs      <- convertRequest ys as bs2
+  pure $ v::vs
+convertRequest _ _ _ = Nothing
 
-convertPRequest : RequestPath ps -> List ByteString -> Maybe $ HList ps
+%inline
+convertPRequest :
+     RequestPath ps
+  -> All DecodeMany ps
+  -> List ByteString
+  -> Maybe $ HList ps
 convertPRequest (Path parts) = convertRequest parts
 
 public export
-Serve (RequestPath ts) where
+(all : All DecodeMany ts) => Serve (RequestPath ts) where
   InTypes            = ts
   OutTypes           = []
   outs               = []
-  fromRequest ps r   = pure $ convertPRequest ps r.uri.path
+  fromRequest ps r   = pure $ convertPRequest ps all r.uri.path
   adjResponse _ _  _ = pure

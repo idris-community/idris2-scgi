@@ -19,11 +19,15 @@ SCGI ps = Path ("scgi-example"::ps)
 MyServer =
   [ [GET [Text] String, SCGI ["inc", Capture Nat]]
   , [GET [Text] String, SCGI ["add", Capture Nat]]
+  , [GET [Text] String, SCGI ["sum", Capture (List Nat)]]
   , [GET [Text] String, SCGI ["hello", Capture String]]
   ]
 
 inc : Logger => HList [Nat] -> SCGIProg ServerErrs (HList [String])
 inc [x] = pure ["New number: \{show $ x+1}\n"]
+
+sum : Logger => HList [List Nat] -> SCGIProg ServerErrs (HList [String])
+sum [xs] = pure ["Total: \{show $ sum xs}\n"]
 
 add : Logger => IORef Nat -> HList [Nat] -> SCGIProg ServerErrs (HList [String])
 add ref [x] = Prelude.do
@@ -34,7 +38,7 @@ hello : Logger => HList [String] -> SCGIProg ServerErrs (HList [String])
 hello [s] = pure ["hello \{s}!\n"]
 
 server : Logger => IORef Nat -> Request -> SCGIProg ServerErrs Response
-server ref req = serveAll MyServer [inc, add ref, hello] req
+server ref req = serveAll MyServer [inc, add ref, sum, hello] req
 
 settings : Config -> List String
 settings c =

@@ -22,7 +22,8 @@ modules = Network.SCGI
         , Network.SCGI.URI
 
         , HTTP.API
-        , HTTP.API.Serve
+        , HTTP.API.Decode
+        , HTTP.API.Method
         , HTTP.API.Path
         , HTTP.API.Query
-        , HTTP.API.Method
+        , HTTP.API.Serve
