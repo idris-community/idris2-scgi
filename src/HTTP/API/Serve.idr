@@ -28,6 +28,14 @@ interface Serve (0 a : Type) where
     -> SCGIProg ServerErrs Response
 
 public export
+data Sing : List a -> Type where
+  IsSing : Sing [v]
+
+public export
+getSing : (as : List a) -> Sing as => a
+getSing [v] = v
+
+public export
 0 AllInTypes : All Serve ts -> List Type
 AllInTypes []       = []
 AllInTypes (x :: t) = InTypes @{x} ++ AllInTypes t
@@ -38,8 +46,13 @@ AllOutTypes []       = []
 AllOutTypes (x :: t) = OutTypes @{x} ++ AllOutTypes t
 
 public export
-0 API : All Serve ts -> Type
-API ts = HList (AllInTypes ts) -> SCGIProg ServerErrs (HList $ AllOutTypes ts)
+0 Fun : List Type -> Type -> Type
+Fun []        r = r
+Fun (t :: ts) r = t -> Fun ts r
+
+public export
+0 API : (al : All Serve ts) -> Sing (AllOutTypes al) => Type
+API al = Fun (AllInTypes al) (SCGIProg ServerErrs (getSing $ AllOutTypes al))
 
 getIns :
      (all : All Serve ts)
@@ -57,6 +70,18 @@ splitHList []        vs      = ([],vs)
 splitHList (t :: ts) (v::vs) =
   let (xs,ys) := splitHList ts vs
    in (v::xs,ys)
+
+wrap : (0 ts : List Type) -> (0 prf : Sing ts) => getSing ts -> HList ts
+wrap [t] @{IsSing} x = [x]
+
+applyAPI :
+     HList ts
+  -> (0 os : List Type)
+  -> {auto 0 prf : Sing os}
+  -> Fun ts (SCGIProg ServerErrs (getSing os))
+  -> SCGIProg ServerErrs (HList os)
+applyAPI []        os r = map (wrap os) r
+applyAPI (v :: vs) os f = applyAPI vs os (f v)
 
 putOuts :
      (all : All Serve ts)
@@ -84,24 +109,26 @@ namespace Server
   data Server : APIs -> Type where
     Nil  : Server []
     (::) :
-         {0 ts     : List Type}
-      -> {0 as     : APIs}
-      -> {hl       : HList ts}
-      -> {auto all : All Serve ts}
+         {0 ts       : List Type}
+      -> {0 as       : APIs}
+      -> {hl         : HList ts}
+      -> {auto all   : All Serve ts}
+      -> {auto 0 prf : Sing (AllOutTypes all)}
       -> API all
       -> Server as
       -> Server (hl :: as)
 
 serve1 :
-     {auto all : All Serve ts}
-  -> {auto log : Logger}
-  -> (api      : HList ts)
+     {auto all   : All Serve ts}
+  -> {auto log   : Logger}
+  -> {auto 0 prf : Sing (AllOutTypes all)}
+  -> (api        : HList ts)
   -> API all
   -> Request
   -> SCGIProg ServerErrs (Maybe Response)
 serve1 @{all} api f req = Prelude.do
   Just ins  <- getIns all api req | _ => pure Nothing
-  outs      <- f ins
+  outs      <- applyAPI ins (AllOutTypes all) f
   Just <$> putOuts all api outs req ok
 
 export
