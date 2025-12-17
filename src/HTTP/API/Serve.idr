@@ -129,7 +129,7 @@ serve1 :
 serve1 @{all} api f req = Prelude.do
   Just ins  <- getIns all api req | _ => pure Nothing
   outs      <- applyAPI ins (AllOutTypes all) f
-  Just <$> putOuts all api outs req ok
+  Just <$> putOuts all api outs req empty
 
 export
 serveAll :

@@ -3,6 +3,7 @@ module HTTP.API.Decode
 import public Data.ByteString
 import Data.Either
 import JSON.Simple
+import Network.SCGI.Response
 import Text.ILex
 
 %default total
@@ -132,6 +133,10 @@ ToJSON a => EncodeVia a JSON where
   toBytes   = pure . fromString . show
   mediaType = "application/json"
 
+export
+setContentType : EncodeVia f t -> Response -> Response
+setContentType e = addHeader "content-type" (fromString $ mediaType @{e})
+
 --------------------------------------------------------------------------------
 -- DecodeVia
 --------------------------------------------------------------------------------
@@ -152,4 +157,3 @@ FromJSON a => DecodeVia JSON a where
   fromBytes  = eitherToMaybe . runBytes json
   decodeFrom = eitherToMaybe . fromJSON
   mediaType  = "application/json"
-

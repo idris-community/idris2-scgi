@@ -8,6 +8,59 @@ import Network.SCGI.Request
 
 %default total
 
+export
+record Status where
+  constructor MkStatus
+  status : ByteString
+
+export
+mkStatus : (code : Nat) -> (msg : String) -> Status
+mkStatus code msg = MkStatus $ fromString "\{show code} \{msg}"
+
+export
+ok200 : Status
+ok200 = mkStatus 200 "OK"
+
+export
+created201 : Status
+created201 = mkStatus 201 "Created"
+
+export
+accepted202 : Status
+accepted202 = mkStatus 202 "Accepted"
+
+export
+noContent204 : Status
+noContent204 = mkStatus 204 "No Content"
+
+export
+badRequest400 : Status
+badRequest400 = mkStatus 400 "Bad Request"
+
+export
+unauthorized401 : Status
+unauthorized401 = mkStatus 401 "Unauthorized"
+
+export
+forbidden403 : Status
+forbidden403 = mkStatus 403 "Forbidden"
+
+export
+notFound404 : Status
+notFound404 = mkStatus 404 "Not Found"
+
+export
+methodNotAllowed405 : Status
+methodNotAllowed405 = mkStatus 405 "Method Not Allowed" 
+
+export
+internalServerError500 : Status
+internalServerError500 = mkStatus 500 "Internal Server Error"
+
+export
+notImplemented501 : Status
+notImplemented501 = mkStatus 501 "Not Implemented"
+
 --------------------------------------------------------------------------------
 --          Response
 --------------------------------------------------------------------------------
@@ -24,8 +77,16 @@ record Response where
   content : List ByteString
 
 export
-addHeader : (ByteString,ByteString) -> Response -> Response
-addHeader (x,y) = {headers $= insert x y}
+empty : Response
+empty = RP empty []
+
+export
+addHeader :  ByteString -> ByteString  -> Response -> Response
+addHeader x y = {headers $= insert x y}
+
+export
+setStatus : Status -> Response -> Response
+setStatus s = addHeader "status" s.status
 
 crlf : ByteString
 crlf = "\r\n"
@@ -41,57 +102,10 @@ responseBytes (RP hs bs) =
 --          Common Responses
 --------------------------------------------------------------------------------
 
-export %inline
-response : List (ByteString,ByteString) -> List ByteString -> Response
-response ps = RP (SM.fromList ps)
-
-export %inline
-response1 : List (ByteString,ByteString) -> ByteString -> Response
-response1 ps = response ps . pure
-
-export
-statusOK : (ByteString,ByteString)
-statusOK = ("Status", "200 OK")
-
-export
-html : (ByteString,ByteString)
-html = ("content-type", "text/html")
-
-sdf, ods, csv : (ByteString,ByteString)
-sdf = ("content-type", "chemical/x-mdl-sdfile")
-ods = ("content-type", "application/vnd.oasis.opendocument.spreadsheet")
-csv = ("content-type", "text/csv")
-
-export
-ok : Response
-ok = addHeader statusOK $ RP empty []
-
 export
 notFound : Response
-notFound =
-  response1 [("Status", "404 Not Found"), html]
-    """
-    <!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
-    <html>
-    <head>
-    <title>404 NotFound</title>
-    </head>
-    <body><h1>Resource Not Found</h1><p>The resource was not found.</p>
-    </body>
-    </html>
-    """
+notFound = setStatus notFound404 empty
 
 export
 forbidden : Response
-forbidden =
-  response1 [("Status", "403 Forbidden"), html]
-    """
-    <!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
-    <html>
-    <head>
-    <title>403 Forbidden</title>
-    </head>
-    <body><h1>Access Denied</h1><p>You are not authorized to access the given resource.</p>
-    </body>
-    </html>
-    """
+forbidden = setStatus forbidden403 empty
