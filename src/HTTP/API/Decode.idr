@@ -1,6 +1,8 @@
 module HTTP.API.Decode
 
 import public Data.ByteString
+import Data.Either
+import JSON.Simple
 import Text.ILex
 
 %default total
@@ -89,3 +91,65 @@ Decode a => DecodeMany (SnocList a) where
 export
 Decode a => DecodeMany (List a) where
   decodeMany bs = map (<>> []) <$> decodeMany bs
+
+--------------------------------------------------------------------------------
+-- EncodeVia
+--------------------------------------------------------------------------------
+
+public export
+0 Text : Type
+Text = String
+
+public export
+0 Octett : Type
+Octett = ByteString
+
+public export
+interface EncodeVia (0 from, to : Type) where
+  encodeAs : from -> to
+  toBytes  : to -> List ByteString
+  mediaType : String
+
+export %inline
+encodeVia : (v : f) -> EncodeVia f t -> List ByteString
+encodeVia v c = toBytes @{c} $ encodeAs @{c} v
+
+export %inline
+EncodeVia String String where
+  encodeAs  = id
+  toBytes   = pure . fromString
+  mediaType = "text/plain"
+
+export %inline
+EncodeVia ByteString ByteString where
+  encodeAs  = id
+  toBytes   = pure
+  mediaType = "application/octett-stream"
+
+export %inline
+ToJSON a => EncodeVia a JSON where
+  encodeAs  = toJSON
+  toBytes   = pure . fromString . show
+  mediaType = "application/json"
+
+--------------------------------------------------------------------------------
+-- DecodeVia
+--------------------------------------------------------------------------------
+
+namespace DecodeVia
+  public export
+  interface DecodeVia (0 from, to : Type) where
+    fromBytes  : ByteString -> Maybe from
+    decodeFrom : from -> Maybe to
+    mediaType  : String
+
+export
+decodeVia : (d : DecodeVia from to) => ByteString -> Maybe to
+decodeVia bs = fromBytes @{d} bs >>= decodeFrom
+
+export %inline
+FromJSON a => DecodeVia JSON a where
+  fromBytes  = eitherToMaybe . runBytes json
+  decodeFrom = eitherToMaybe . fromJSON
+  mediaType  = "application/json"
+
