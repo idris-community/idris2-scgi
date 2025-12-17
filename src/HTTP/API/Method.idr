@@ -2,51 +2,12 @@ module HTTP.API.Method
 
 import Data.ByteString
 import Data.SortedMap
+import HTTP.API.Decode
 import HTTP.API.Serve
 import JSON.Simple
 import Network.SCGI.Request
 
 %default total
-
---------------------------------------------------------------------------------
--- Encodevia
---------------------------------------------------------------------------------
-
-public export
-0 Text : Type
-Text = String
-
-public export
-0 Octett : Type
-Octett = ByteString
-
-public export
-interface EncodeVia (0 from, to : Type) where
-  encodeAs : from -> to
-  toBytes  : to -> List ByteString
-  mediaType : String
-
-export %inline
-encodeVia : (v : f) -> EncodeVia f t -> List ByteString
-encodeVia v c = toBytes @{c} $ encodeAs @{c} v
-
-export %inline
-EncodeVia String String where
-  encodeAs  = id
-  toBytes   = pure . fromString
-  mediaType = "text/plain"
-
-export %inline
-EncodeVia ByteString ByteString where
-  encodeAs  = id
-  toBytes   = pure
-  mediaType = "application/octett-stream"
-
-export %inline
-ToJSON a => EncodeVia a JSON where
-  encodeAs  = toJSON
-  toBytes   = pure . fromString . show
-  mediaType = "application/json"
 
 --------------------------------------------------------------------------------
 -- Method
@@ -107,7 +68,7 @@ public export
 public export
 Serve Method' where
   InTypes  = []
-  OutTypes = []
+  OutTypes = [()]
   outs     = %search
   fromRequest (M' m) r =
     pure $ if Just m == lookup "REQUEST_METHOD" r.headers then Just [] else Nothing

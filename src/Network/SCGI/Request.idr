@@ -91,9 +91,11 @@ stringContent r = toString r.content
 
 export %inline
 contentType : Request -> Maybe MimeType
-contentType r = Prelude.do
-  bs <- lookup "CONTENT_TYPE" r.headers
-  toMimeType bs
+contentType r = lookup "CONTENT_TYPE" r.headers >>= toMimeType
+
+export
+hasContentType : Request -> String -> Bool
+hasContentType r s = Just s == map type (contentType r)
 
 export
 accept : Request -> List MimeType
