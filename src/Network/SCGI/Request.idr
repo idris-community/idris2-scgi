@@ -150,10 +150,15 @@ multipart sep =
   let sepBS := ByteString.fastConcat ["--", fromString sep, crlf]
    in foldl part (MkParts empty empty) . splitAtSubstring sepBS
 
+export
+requestURI : Headers -> Maybe ByteString
+requestURI hs = lookup "REQUEST_URI" hs
+
 --------------------------------------------------------------------------------
 --          Parsers
 --------------------------------------------------------------------------------
 
+-- TODO: Use `RequestErr` instead of `SCGIErr` here.
 parameters {auto c    : Config}
            {auto has  : Has SCGIErr es}
            {auto merr : MErr f}
@@ -168,6 +173,6 @@ parameters {auto c    : Config}
 
   ||| Gets the request URI from the headers.
   export
-  requestURI : Headers -> f es URI
-  requestURI hs =
-    maybe (throw InvalidRequest) pure $ lookup "REQUEST_URI" hs >>= parseURI
+  parseRequestURI : Headers -> f es URI
+  parseRequestURI hs =
+    maybe (throw InvalidRequest) pure $ requestURI hs >>= parseURI

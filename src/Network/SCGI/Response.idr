@@ -3,63 +3,20 @@ module Network.SCGI.Response
 import Data.Buffer
 import Data.ByteString
 import Data.List
+import Data.List.Quantifiers
 import Data.SortedMap as SM
+import HTTP.API.Decode
+import HTTP.API.Error
+import JSON.Simple
+import Network.SCGI.Error
+import Network.SCGI.Prog
 import Network.SCGI.Request
 
 %default total
 
-export
-record Status where
-  constructor MkStatus
-  status : ByteString
-
-export
-mkStatus : (code : Nat) -> (msg : String) -> Status
-mkStatus code msg = MkStatus $ fromString "\{show code} \{msg}"
-
-export
-ok200 : Status
-ok200 = mkStatus 200 "OK"
-
-export
-created201 : Status
-created201 = mkStatus 201 "Created"
-
-export
-accepted202 : Status
-accepted202 = mkStatus 202 "Accepted"
-
-export
-noContent204 : Status
-noContent204 = mkStatus 204 "No Content"
-
-export
-badRequest400 : Status
-badRequest400 = mkStatus 400 "Bad Request"
-
-export
-unauthorized401 : Status
-unauthorized401 = mkStatus 401 "Unauthorized"
-
-export
-forbidden403 : Status
-forbidden403 = mkStatus 403 "Forbidden"
-
-export
-notFound404 : Status
-notFound404 = mkStatus 404 "Not Found"
-
-export
-methodNotAllowed405 : Status
-methodNotAllowed405 = mkStatus 405 "Method Not Allowed" 
-
-export
-internalServerError500 : Status
-internalServerError500 = mkStatus 500 "Internal Server Error"
-
-export
-notImplemented501 : Status
-notImplemented501 = mkStatus 501 "Not Implemented"
+public export
+0 Handler : Type -> Type
+Handler = SCGIProg [RequestErr]
 
 --------------------------------------------------------------------------------
 --          Response
@@ -86,7 +43,7 @@ addHeader x y = {headers $= insert x y}
 
 export
 setStatus : Status -> Response -> Response
-setStatus s = addHeader "status" s.status
+setStatus s = addHeader "status" (cast s)
 
 crlf : ByteString
 crlf = "\r\n"
@@ -98,14 +55,45 @@ responseBytes (RP hs bs) =
     [] => crlf :: crlf :: bs 
     ps => (ps >>= \(h,v) => [h,":",v,crlf]) ++ crlf :: bs
 
+export
+setContentType : EncodeVia f t -> Response -> Response
+setContentType e = addHeader "content-type" (fromString $ mediaType @{e})
+
+export
+encodeBody :
+     Status
+  -> t
+  -> Request
+  -> All (EncodeVia t) ts
+  -> Response
+  -> Response
+encodeBody s v r []        rs = setStatus s rs
+encodeBody s v r (e :: es) rs =
+  case acceptsMedia r (mediaType @{e}) of
+    False => encodeBody s v r es rs
+    True  => {content := encodeVia v e} rs |> setContentType e |> setStatus s
+
 --------------------------------------------------------------------------------
 --          Common Responses
 --------------------------------------------------------------------------------
 
-export
-notFound : Response
-notFound = setStatus notFound404 empty
+encErr : All (EncodeVia RequestErr) [JSON, Text]
+encErr = %search
 
 export
-forbidden : Response
-forbidden = setStatus forbidden403 empty
+fromError : Request -> HSum [RequestErr] -> Response
+fromError r (Here $ re@(RE st err _ _ _)) =
+ let u := maybe "" toString $ requestURI r.headers
+  in encodeBody (MkStatus st err) ({path := u} re) r encErr empty
+
+export
+fromStatus : Request -> Status -> Response
+fromStatus r s = fromError r (Here $ requestErr s)
+
+export
+notFound : Request -> Response
+notFound r = fromStatus r notFound404
+
+export
+forbidden : Request -> Response
+forbidden r = fromStatus r forbidden403

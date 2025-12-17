@@ -59,7 +59,7 @@ parameters {auto conf : Config}
     (head,rem2) <- header hsz rem1
     exec $ for_ (kvList head) $ \(k,v) => debug "\{k}: \{v}"
     cl          <- contentLength head
-    u           <- requestURI head
+    u           <- parseRequestURI head
     body        <- foldGet (:<) [<] (C.take cl $ C.drop 1 rem2)
     pure $ RQ head u cl (RT timestamp) (fastConcat $ body <>> [])
 
@@ -70,7 +70,7 @@ parameters {auto conf : Config}
 ||| @ run      : core SCGI application converting SCGI request to
 |||              HTTP responses
 export covering
-serve : Logger => Config -> (Request -> SCGIProg ServerErrs Response) -> SCGIProg [] ()
+serve : Logger => Config -> (Request -> SCGIProg [] Response) -> SCGIProg [] ()
 serve c@(C a p _ _ co) run =
   mpull $ handle handlers $ 
     foreachPar co doServe (acceptOn AF_INET SOCK_STREAM $ IP4 a p)
@@ -83,7 +83,7 @@ serve c@(C a p _ _ co) run =
     doServe cli =
       mpull $ finally (close' cli) $ handle handlers $ Prelude.do
         req  <- request (bytes cli 0xffff)
-        resp <- exec (run req)
+        resp <- exec (weakenErrors $ run req)
         writeTo cli (emits $ responseBytes resp)
 
 ||| Simplified version of `serve` used for wrapping a simple `IO`

@@ -1,6 +1,9 @@
 module HTTP.API.Serve
 
+import Data.SortedMap
 import public Data.List.Quantifiers
+import public HTTP.API.Decode
+import public HTTP.API.Error
 import public Network.SCGI.Error
 import public Network.SCGI.Logging
 import public Network.SCGI.Prog
@@ -9,23 +12,26 @@ import public Network.SCGI.Response
 
 %default total
 
+||| A list of erased (!) types.
+|||
+||| This is represents the size of a heterogeneous list (it is just
+||| a natural number at runtime) and is used to split off a
+||| predefined prefix off a heterogeneous list.
 public export
 data TList : List Type -> Type where
   Nil  : TList []
   (::) : (0 t : Type) -> TList ts -> TList (t::ts)
 
+||| Interface for building up a server API from a
+||| heterogeneous list of values.
 public export
 interface Serve (0 a : Type) where
   0 InTypes   : List Type
   0 OutTypes  : List Type
   outs        : TList OutTypes
-  fromRequest : a -> Request -> SCGIProg ServerErrs (Maybe $ HList InTypes)
-  adjResponse :
-       a
-    -> HList OutTypes
-    -> Request
-    -> Response
-    -> SCGIProg ServerErrs Response
+  canHandle   : a -> Request -> Bool
+  fromRequest : a -> Request -> Handler (HList InTypes)
+  adjResponse : a -> HList OutTypes -> Request -> Response -> Handler Response
 
 public export
 data Sing : List a -> Type where
@@ -52,18 +58,18 @@ Fun (t :: ts) r = t -> Fun ts r
 
 public export
 0 API : (al : All Serve ts) -> Sing (AllOutTypes al) => Type
-API al = Fun (AllInTypes al) (SCGIProg ServerErrs (getSing $ AllOutTypes al))
+API al = Fun (AllInTypes al) (Handler (getSing $ AllOutTypes al))
 
 getIns :
      (all : All Serve ts)
   -> HList ts
   -> Request
-  -> SCGIProg ServerErrs (Maybe $ HList $ AllInTypes all)
-getIns []      []      req = pure (Just [])
+  -> Handler (HList $ AllInTypes all)
+getIns []      []      req = pure []
 getIns (a::as) (v::vs) req = Prelude.do
-  Just rs  <- fromRequest @{a} v req | _ => pure Nothing
-  Just rem <- getIns as vs req       | _ => pure Nothing
-  pure (Just $ rs ++ rem)
+  rs  <- fromRequest @{a} v req
+  rem <- getIns as vs req 
+  pure (rs ++ rem)
 
 splitHList : TList ts -> HList (ts ++ rem) -> (HList ts, HList rem)
 splitHList []        vs      = ([],vs)
@@ -78,8 +84,8 @@ applyAPI :
      HList ts
   -> (0 os : List Type)
   -> {auto 0 prf : Sing os}
-  -> Fun ts (SCGIProg ServerErrs (getSing os))
-  -> SCGIProg ServerErrs (HList os)
+  -> Fun ts (Handler (getSing os))
+  -> Handler (HList os)
 applyAPI []        os r = map (wrap os) r
 applyAPI (v :: vs) os f = applyAPI vs os (f v)
 
@@ -89,7 +95,7 @@ putOuts :
   -> HList (AllOutTypes all)
   -> Request
   -> Response
-  -> SCGIProg ServerErrs Response
+  -> Handler Response
 putOuts []        []      [] req resp = pure resp
 putOuts (a :: as) (x::xs) vs req resp = Prelude.do
   let (ts,rem) := splitHList (outs @{a}) vs
@@ -118,27 +124,31 @@ namespace Server
       -> Server as
       -> Server (hl :: as)
 
+canServe : {auto all : All Serve ts} -> HList ts -> Request -> Bool
+canServe @{[]}    []      req = True
+canServe @{s::ss} (v::vs) req = canHandle @{s} v req && canServe vs req
+
 serve1 :
      {auto all   : All Serve ts}
-  -> {auto log   : Logger}
   -> {auto 0 prf : Sing (AllOutTypes all)}
   -> (api        : HList ts)
   -> API all
   -> Request
-  -> SCGIProg ServerErrs (Maybe Response)
-serve1 @{all} api f req = Prelude.do
-  Just ins  <- getIns all api req | _ => pure Nothing
-  outs      <- applyAPI ins (AllOutTypes all) f
-  Just <$> putOuts all api outs req empty
+  -> Async Poll [] Response
+serve1 @{all} api f req = 
+  handleErrors (pure . fromError req) $ Prelude.do
+    ins  <- getIns all api req
+    outs <- applyAPI ins (AllOutTypes all) f
+    putOuts all api outs req empty
 
 export
 serveAll :
-     {auto log : Logger}
-  -> (0 apis   : APIs)
+     (0 apis   : APIs)
   -> Server apis
   -> Request
-  -> SCGIProg ServerErrs Response
-serveAll []         []              req = pure notFound
-serveAll (hl :: as) ((::) {hl} f x) req = Prelude.do
-  Just res <- serve1 hl f req | _ => serveAll as x req
-  pure res
+  -> Async Poll [] Response
+serveAll []         []              req = ?notfound -- pure notFound
+serveAll (hl :: as) ((::) {hl} f x) req =
+  case canServe hl req of
+    True  => serve1 hl f req
+    False => serveAll as x req

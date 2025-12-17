@@ -28,34 +28,34 @@ parameters {auto log : Logger}
            (tot      : IORef Nat)
            (users    : IORef (SnocList User))
 
-  inc : Nat -> SCGIProg ServerErrs String
+  inc : Nat -> Handler String
   inc x = pure "New number: \{show $ x+1}\n"
 
-  sum : List Nat -> SCGIProg ServerErrs String
+  sum : List Nat -> Handler String
   sum xs = pure "Total: \{show $ Prelude.sum xs}\n"
 
-  add : Nat -> SCGIProg ServerErrs String
+  add : Nat -> Handler String
   add x = Prelude.do
     v <- lift1 $ modAndRead1 tot (+x)
     pure "Added \{show x}. New number is: \{show v}\n"
 
-  hello : String -> SCGIProg ServerErrs String
+  hello : String -> Handler String
   hello s = pure "hello \{s}!\n"
 
-  login : String -> String -> SCGIProg ServerErrs String
+  login : String -> String -> Handler String
   login "stefan" "hoeck" = pure "Authentication successful\n"
   login un       pw      = pure "Unknown user or invalid password\n"
 
-  addUser : User -> SCGIProg ServerErrs ()
+  addUser : User -> Handler ()
   addUser u = mod users (:< u) >> info "user added"
 
-  addUsers : List User -> SCGIProg ServerErrs ()
+  addUsers : List User -> Handler ()
   addUsers us = mod users (<>< us) >> info "\{show $ length us} users added"
 
-  getUsers : SCGIProg ServerErrs (List User)
+  getUsers : Handler (List User)
   getUsers = (<>> []) <$> readref users
 
-  server : Request -> SCGIProg ServerErrs Response
+  server : Request -> SCGIProg [] Response
   server =
     serveAll MyServer
       [ inc

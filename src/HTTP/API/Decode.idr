@@ -1,34 +1,40 @@
 module HTTP.API.Decode
 
-import public Data.ByteString
 import Data.Either
+import Data.List.Quantifiers
 import JSON.Simple
-import Network.SCGI.Response
 import Text.ILex
+import public Data.ByteString
+import public HTTP.API.Encode
+import public HTTP.API.Error
+import public HTTP.API.Status
 
 %default total
 
 ||| An interface for decoding value from a sequence of raw bytes.
 public export
 interface Decode (0 a : Type) where
-  decode : ByteString -> Maybe a
+  decode : ByteString -> Either DecodeErr a
 
 ||| Utiliy alias for `decode` that allows to explicitly specify the
 ||| target type.
 public export %inline
-decodeAs : (0 a : Type) -> Decode a => ByteString -> Maybe a
+decodeAs : (0 a : Type) -> Decode a => ByteString -> Either DecodeErr a
 decodeAs _ = decode
 
 export %inline
-Decode ByteString where decode = Just
+Decode ByteString where decode = Right
 
 export %inline
-Decode String where decode = Just . toString
+Decode String where decode = Right . toString
 
 export
 Decode Nat where
-  decode (BS 0 _) = Nothing
-  decode bs = if all isDigit bs then Just (cast $ decimal bs) else Nothing
+  decode (BS 0 _) = Left $ invalidVal "natural number" ""
+  decode bs =
+    if all isDigit bs
+       then Right (cast $ decimal bs)
+       else Left $ invalidVal "natural number" (toString bs)
 
 export
 Decode Bits8 where decode = map cast . decodeAs Nat
@@ -44,7 +50,7 @@ Decode Bits64 where decode = map cast . decodeAs Nat
 
 export
 Decode Integer where
-  decode (BS 0 _) = Nothing
+  decode (BS 0 _) = Left (invalidVal "integer" "")
   decode bs@(BS (S k) bv) =
     case head bv of
       45 => map (negate . cast) (decodeAs Nat (BS k $ tail bv))
@@ -67,75 +73,39 @@ Decode Int64 where decode = map cast . decodeAs Integer
 ||| of a list of bytestrings such as a path in a URL.
 public export
 interface DecodeMany (0 a : Type) where
-  decodeMany : List ByteString -> Maybe (List ByteString, a)
+  simulateDecode : List ByteString -> Maybe (List ByteString)
+
+  decodeMany : List ByteString -> Either DecodeErr (List ByteString, a)
 
 export
 Decode a => DecodeMany a where
-  decodeMany []      = Nothing
+  simulateDecode []      = Nothing
+  simulateDecode (b::bs) = Just bs
+
+  decodeMany []      = Left (Msg "Unexpected end of URL path")
   decodeMany (b::bs) = (bs,) <$> decode b
 
-decsnoc :
-     {auto dec : Decode a}
-  -> SnocList a
+export
+decodeAll :
+     SnocList a
+  -> Decode a
   -> List ByteString
-  -> (List ByteString, SnocList a)
-decsnoc sx []        = ([], sx)
-decsnoc sx (x :: xs) =
-  case decodeAs a x of
-    Just v  => decsnoc (sx:<v) xs
-    Nothing => (x::xs, sx)
+  -> Either DecodeErr (List ByteString,SnocList a)
+decodeAll sx d []        = Right ([],sx)
+decodeAll sx d (x :: xs) =
+  case decode @{d} x of
+    Right v  => decodeAll (sx:<v) d xs
+    Left err => Left err
 
 export
 Decode a => DecodeMany (SnocList a) where
-  decodeMany bs = Just $ decsnoc [<] bs
+  simulateDecode bs = Just []
+  decodeMany = decodeAll [<] %search
 
 export
 Decode a => DecodeMany (List a) where
-  decodeMany bs = map (<>> []) <$> decodeMany bs
-
---------------------------------------------------------------------------------
--- EncodeVia
---------------------------------------------------------------------------------
-
-public export
-0 Text : Type
-Text = String
-
-public export
-0 Octett : Type
-Octett = ByteString
-
-public export
-interface EncodeVia (0 from, to : Type) where
-  encodeAs : from -> to
-  toBytes  : to -> List ByteString
-  mediaType : String
-
-export %inline
-encodeVia : (v : f) -> EncodeVia f t -> List ByteString
-encodeVia v c = toBytes @{c} $ encodeAs @{c} v
-
-export %inline
-EncodeVia String String where
-  encodeAs  = id
-  toBytes   = pure . fromString
-  mediaType = "text/plain"
-
-export %inline
-EncodeVia ByteString ByteString where
-  encodeAs  = id
-  toBytes   = pure
-  mediaType = "application/octett-stream"
-
-export %inline
-ToJSON a => EncodeVia a JSON where
-  encodeAs  = toJSON
-  toBytes   = pure . fromString . show
-  mediaType = "application/json"
-
-export
-setContentType : EncodeVia f t -> Response -> Response
-setContentType e = addHeader "content-type" (fromString $ mediaType @{e})
+  simulateDecode bs = Just []
+  decodeMany bs = map (<>> []) <$> decodeAll [<] %search bs
 
 --------------------------------------------------------------------------------
 -- DecodeVia
@@ -144,16 +114,16 @@ setContentType e = addHeader "content-type" (fromString $ mediaType @{e})
 namespace DecodeVia
   public export
   interface DecodeVia (0 from, to : Type) where
-    fromBytes  : ByteString -> Maybe from
-    decodeFrom : from -> Maybe to
+    fromBytes  : ByteString -> Either DecodeErr from
+    decodeFrom : from -> Either DecodeErr to
     mediaType  : String
 
 export
-decodeVia : (d : DecodeVia from to) => ByteString -> Maybe to
+decodeVia : (d : DecodeVia from to) => ByteString -> Either DecodeErr to
 decodeVia bs = fromBytes @{d} bs >>= decodeFrom
 
-export %inline
+export
 FromJSON a => DecodeVia JSON a where
-  fromBytes  = eitherToMaybe . runBytes json
-  decodeFrom = eitherToMaybe . fromJSON
+  fromBytes  = mapFst (invalidBody "JSON value") . parseBytes json Virtual
+  decodeFrom = mapFst (invalidBody "JSON value" . JErr) . fromJSON
   mediaType  = "application/json"

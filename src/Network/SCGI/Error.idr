@@ -4,10 +4,6 @@ import IO.Async.Posix
 
 %default total
 
---------------------------------------------------------------------------------
---          Error
---------------------------------------------------------------------------------
-
 public export
 data SCGIErr : Type where
   InvalidRequest : SCGIErr
