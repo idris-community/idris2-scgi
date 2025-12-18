@@ -1,27 +1,23 @@
 module Network.SCGI.Error
 
 import IO.Async.Posix
+import public HTTP.API.Error
+import public HTTP.API.Status
 
 %default total
 
---------------------------------------------------------------------------------
---          Error
---------------------------------------------------------------------------------
-
-public export
-data SCGIErr : Type where
-  InvalidRequest : SCGIErr
-  LargeHeader    : (max : Nat) -> SCGIErr
-  LargeBody      : (max : Nat) -> SCGIErr
+export
+largeBody : Nat -> RequestErr
+largeBody n =
+  {message := "Maximum content size is \{show n} bytes"} $
+    requestErr contentTooLarge413
 
 export
-Interpolation SCGIErr where
-  interpolate InvalidRequest  = "Invalid request sent by web-server"
-  interpolate (LargeHeader n) =
-    "The maximum header size of \{show n} bytes was exceeded"
-  interpolate (LargeBody n)   =
-    "The maximum content size of \{show n} bytes was exceeded"
+largeHeader : Nat -> RequestErr
+largeHeader n =
+  {message := "Maximum header size is \{show n} bytes"} $
+    requestErr requestHeaderFieldsTooLarge431
 
-public export
-0 ServerErrs : List Type
-ServerErrs = [Errno, SCGIErr]
+export
+badRequest : RequestErr
+badRequest = requestErr badRequest400

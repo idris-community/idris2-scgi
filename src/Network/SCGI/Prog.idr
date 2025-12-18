@@ -44,5 +44,5 @@ Errs []      fs = ()
 
 ||| A handler for error type `e`.
 public export
-0 Handler : (e : Type) -> Type
-Handler e = e -> SCGIProg [] ()
+0 ErrorHandler : (e : Type) -> Type
+ErrorHandler e = e -> SCGIProg [] ()

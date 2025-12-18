@@ -2,9 +2,8 @@ module HTTP.API.Body
 
 import Data.ByteString
 import Data.SortedMap
-import HTTP.API.Decode
 import HTTP.API.Serve
-import Network.SCGI.Request
+import JSON.Simple
 
 %default total
 
@@ -16,17 +15,22 @@ data ReqBody : (formats : List Type) -> (val : Type) -> Type where
 -- Implementations
 --------------------------------------------------------------------------------
 
-decodeBody : All (`DecodeVia` t) ts -> Request -> Maybe (HList [t])
-decodeBody []        r = Nothing
+decodeBody : All (`DecodeVia` t) ts -> Request -> Either RequestErr (HList [t])
+decodeBody []        r = Left $ requestErr unsupportedMediaType415
 decodeBody (d :: ds) r =
-  if hasContentType r (mediaType @{d})
-     then (\x => [x]) <$> decodeVia @{d} r.content
-     else decodeBody ds r
+  case hasContentType r.headers (mediaType @{d}) of
+    False => decodeBody ds r
+    True  =>
+     bimap
+       (decodeErr unsupportedMediaType415)
+       (\x => [x])
+       (decodeVia @{d} r.content)
 
 public export
 (all : All (`DecodeVia` t) ts) => Serve (ReqBody ts t) where
-  InTypes  = [t]
-  OutTypes = []
-  outs     = %search
-  fromRequest m r = pure $ decodeBody all r
-  adjResponse m [] req = pure
+  InTypes              = [t]
+  OutTypes             = []
+  outs                 = %search
+  canHandle   _ r      = True
+  fromRequest _ r      = injectEither $ decodeBody all r
+  adjResponse _ [] req = pure
