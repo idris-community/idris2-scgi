@@ -55,8 +55,16 @@ notAcceptable406 : Status
 notAcceptable406 = MkStatus 406 "Not Acceptable" 
 
 export
+contentTooLarge413 : Status
+contentTooLarge413 = MkStatus 413 "Content Too Large"
+
+export
 unsupportedMediaType415 : Status
 unsupportedMediaType415 = MkStatus 415 "Unsupported Media Type"
+
+export
+requestHeaderFieldsTooLarge431 : Status
+requestHeaderFieldsTooLarge431 = MkStatus 431 "Request Header Fields Too Large"
 
 export
 internalServerError500 : Status

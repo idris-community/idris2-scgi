@@ -18,7 +18,7 @@ data ReqBody : (formats : List Type) -> (val : Type) -> Type where
 decodeBody : All (`DecodeVia` t) ts -> Request -> Either RequestErr (HList [t])
 decodeBody []        r = Left $ requestErr unsupportedMediaType415
 decodeBody (d :: ds) r =
-  case hasContentType r (mediaType @{d}) of
+  case hasContentType r.headers (mediaType @{d}) of
     False => decodeBody ds r
     True  =>
      bimap

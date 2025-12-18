@@ -24,7 +24,7 @@ import public Network.SCGI.Response
 Bytes es = SCGIStream es ByteString
 
 parameters {auto conf : Config}
-           {auto has  : Has SCGIErr es}
+           {auto has  : Has RequestErr es}
            {auto log  : Logger}
 
   -- An SCGI request starts with the header size (in decimal)
@@ -33,8 +33,8 @@ parameters {auto conf : Config}
   -- separated by zero bytes.
   headerSize : Bytes es -> SCGIPull o es (Nat, Bytes es)
   headerSize p =
-       C.forceBreakFull InvalidRequest DropHit (58 ==) p
-    |> C.limit (LargeHeader conf.maxHeaderSize) 10
+       C.forceBreakFull badRequest DropHit (58 ==) p
+    |> C.limit (largeHeader conf.maxHeaderSize) 10
     |> P.foldPair (<+>) empty
     |> map (mapFst $ fromMaybe 0 . ByteString.parseDecimalNat)
 
@@ -55,13 +55,26 @@ parameters {auto conf : Config}
   request p = Prelude.do
     timestamp   <- liftIO (clockTime UTC)
     (hsz, rem1) <- headerSize p
-    when (hsz > conf.maxHeaderSize) (throw $ LargeHeader conf.maxHeaderSize)
+    when (hsz > conf.maxHeaderSize) (throw $ largeHeader conf.maxHeaderSize)
     (head,rem2) <- header hsz rem1
     exec $ for_ (kvList head) $ \(k,v) => debug "\{k}: \{v}"
     cl          <- contentLength head
     u           <- parseRequestURI head
+    for_ (requestPath head) $ \x =>
+      exec $ info "Got a request at \{x} (\{show cl} bytes)"
     body        <- foldGet (:<) [<] (C.take cl $ C.drop 1 rem2)
     pure $ RQ head u cl (RT timestamp) (fastConcat $ body <>> [])
+
+logErr : Logger => RequestErr -> SCGIPull o es ()
+logErr re =
+  exec $ case re.path of
+    "" => Prelude.do
+      warn "Invalid request (status code \{show re.status}): \{re.error}"
+      warn "Message: \{re.message}"
+    u  => Prelude.do
+      info "Invalid request at \{u} (status code \{show re.status}): \{re.error}"
+      info "Message: \{re.message}"
+      when ("" /= re.details) $ info "Details: \{re.details}"
 
 ||| This is the end of the world where we serve the
 ||| SCGI-application. All we need is a bit of information to get going:
@@ -70,21 +83,30 @@ parameters {auto conf : Config}
 ||| @ run      : core SCGI application converting SCGI request to
 |||              HTTP responses
 export covering
-serve : Logger => Config -> (Request -> SCGIProg [] Response) -> SCGIProg [] ()
+serve : Logger => Config -> (Request -> Handler Response) -> SCGIProg [] ()
 serve c@(C a p _ _ co) run =
   mpull $ handle handlers $ 
     foreachPar co doServe (acceptOn AF_INET SOCK_STREAM $ IP4 a p)
 
   where
-    handlers : All (\e => e -> SCGIPull Void [] ())  ServerErrs
-    handlers = [exec . ierror, exec . ierror]
+    handlers : All (\e => e -> SCGIPull Void [] ())  [Errno]
+    handlers = [exec . ierror]
+
+    %inline
+    request' : Socket AF_INET -> SCGIPull o [RequestErr,Errno] Request 
+    request' cli = request $ bytes cli 0xffff
+
+    send : Socket AF_INET -> Response -> SCGIStream [Errno] Void
+    send cli resp = writeTo cli (emits $ responseBytes resp)
 
     doServe : Socket AF_INET -> SCGIProg [] ()
     doServe cli =
-      mpull $ finally (close' cli) $ handle handlers $ Prelude.do
-        req  <- request (bytes cli 0xffff)
-        resp <- exec (weakenErrors $ run req)
-        writeTo cli (emits $ responseBytes resp)
+      mpull $ finally (close' cli) $ handle handlers $
+        extractErr RequestErr (request' cli) >>= \case
+          Left x  => logErr x >> send cli (fromError empty x)
+          Right req => exec (weakenErrors $ extractErr RequestErr $ run req) >>= \case
+            Left x  => logErr x >> send cli (fromError req.headers x)
+            Right resp => send cli resp
 
 ||| Simplified version of `serve` used for wrapping a simple `IO`
 ||| converter.

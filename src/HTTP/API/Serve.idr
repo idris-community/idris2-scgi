@@ -134,20 +134,15 @@ serve1 :
   -> (api        : HList ts)
   -> API all
   -> Request
-  -> Async Poll [] Response
-serve1 @{all} api f req = 
-  handleErrors (pure . fromError req) $ Prelude.do
-    ins  <- getIns all api req
-    outs <- applyAPI ins (AllOutTypes all) f
-    putOuts all api outs req empty
+  -> Handler Response
+serve1 @{all} api f req = Prelude.do
+  ins  <- getIns all api req
+  outs <- applyAPI ins (AllOutTypes all) f
+  putOuts all api outs req empty
 
 export
-serveAll :
-     (0 apis   : APIs)
-  -> Server apis
-  -> Request
-  -> Async Poll [] Response
-serveAll []         []              req = ?notfound -- pure notFound
+serveAll : (0 apis   : APIs) -> Server apis -> Request -> Handler Response
+serveAll []         []              req = throw (requestErr notFound404)
 serveAll (hl :: as) ((::) {hl} f x) req =
   case canServe hl req of
     True  => serve1 hl f req

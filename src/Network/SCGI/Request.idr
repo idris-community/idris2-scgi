@@ -20,11 +20,47 @@ import System.Clock
 --          Headers
 --------------------------------------------------------------------------------
 
+public export
+record MimeType where
+  constructor MT
+  type  : String
+  param : Maybe (String,String)
+
+toMimeType : ByteString -> Maybe MimeType
+toMimeType bs =
+  case trim <$> split 59 bs of -- 59 = ;
+    [mt,p] => case (ByteString.toString . trim) <$> split 61 p of
+      [pa,v] => Just (MT (toLower $ toString mt) (Just (toLower pa, v)))
+      _      => Nothing
+    [mt]   => Just (MT (toLower $ toString mt) Nothing)
+    _      => Nothing
+
 ||| Alias for a sorted map (dictionary) mapping header names to
 ||| header values.
 public export
 0 Headers : Type
 Headers = SortedMap ByteString ByteString
+
+export %inline
+contentType : Headers -> Maybe MimeType
+contentType hs = lookup "CONTENT_TYPE" hs >>= toMimeType
+
+export
+hasContentType : Headers -> String -> Bool
+hasContentType hs s = Just s == map type (contentType hs)
+
+export
+accept : Headers -> List MimeType
+accept =
+    mapMaybe toMimeType
+  . maybe [] (map trim . split 44)
+  . lookup "HTTP_ACCEPT"
+
+export
+acceptsMedia : Headers -> String -> Bool
+acceptsMedia hs s =
+ let ts := accept hs
+  in any ((s ==) . type) ts || any (("*/*" ==) . type) ts 
 
 --------------------------------------------------------------------------------
 --          RequestTime
@@ -44,23 +80,6 @@ record RequestTime where
 --------------------------------------------------------------------------------
 --          Request
 --------------------------------------------------------------------------------
-
-public export
-record MimeType where
-  constructor MT
-  type  : String
-  param : Maybe (String,String)
-
-toMimeType : ByteString -> Maybe MimeType
-toMimeType bs =
-  case trim <$> split 59 bs of -- 59 = ;
-    [mt,p] => case (ByteString.toString . trim) <$> split 61 p of
-      [pa,v] => Just (MT (toLower $ toString mt) (Just (toLower pa, v)))
-      _      => Nothing
-    [mt]   => Just (MT (toLower $ toString mt) Nothing)
-    _      => Nothing
-
---  interpolate JSON            = "application/json"
 
 ||| A request sent from the client listing the SCGI headers provided by
 ||| the proxy server, the total content size, and an IO action for
@@ -84,32 +103,6 @@ record Request where
 
   ||| Content
   content     : ByteString
-
-export %inline
-stringContent : Request -> String
-stringContent r = toString r.content
-
-export %inline
-contentType : Request -> Maybe MimeType
-contentType r = lookup "CONTENT_TYPE" r.headers >>= toMimeType
-
-export
-hasContentType : Request -> String -> Bool
-hasContentType r s = Just s == map type (contentType r)
-
-export
-accept : Request -> List MimeType
-accept =
-    mapMaybe toMimeType
-  . maybe [] (map trim . split 44)
-  . lookup "HTTP_ACCEPT"
-  . headers
-
-export
-acceptsMedia : Request -> String -> Bool
-acceptsMedia r s =
- let ts := accept r
-  in any ((s ==) . type) ts || any (("*/*" ==) . type) ts 
 
 --------------------------------------------------------------------------------
 --          Multipart Requests
@@ -154,13 +147,20 @@ export
 requestURI : Headers -> Maybe ByteString
 requestURI hs = lookup "REQUEST_URI" hs
 
+export
+requestPath : Headers -> Maybe ByteString
+requestPath hs = Prelude.do
+  u <- requestURI hs
+  case split 63 u of
+    x::_ => Just x
+    _    => Nothing
+
 --------------------------------------------------------------------------------
 --          Parsers
 --------------------------------------------------------------------------------
 
--- TODO: Use `RequestErr` instead of `SCGIErr` here.
 parameters {auto c    : Config}
-           {auto has  : Has SCGIErr es}
+           {auto has  : Has RequestErr es}
            {auto merr : MErr f}
 
   ||| Gets the content length (number of bytes in the content part of
@@ -169,10 +169,10 @@ parameters {auto c    : Config}
   contentLength : Headers -> f es Nat
   contentLength hs =
     let sz := maybe Z (cast . decimal) $ lookup "CONTENT_LENGTH" hs
-     in if sz > c.maxMsgSize then throw (LargeBody c.maxMsgSize) else pure sz
+     in if sz > c.maxMsgSize then throw (largeBody c.maxMsgSize) else pure sz
 
   ||| Gets the request URI from the headers.
   export
   parseRequestURI : Headers -> f es URI
   parseRequestURI hs =
-    maybe (throw InvalidRequest) pure $ requestURI hs >>= parseURI
+    maybe (throw badRequest) pure $ requestURI hs >>= parseURI

@@ -63,14 +63,14 @@ export
 encodeBody :
      Status
   -> t
-  -> Request
+  -> Headers
   -> All (EncodeVia t) ts
   -> Response
   -> Response
-encodeBody s v r []        rs = setStatus s rs
-encodeBody s v r (e :: es) rs =
-  case acceptsMedia r (mediaType @{e}) of
-    False => encodeBody s v r es rs
+encodeBody s v hs []        rs = setStatus s rs
+encodeBody s v hs (e :: es) rs =
+  case acceptsMedia hs (mediaType @{e}) of
+    False => encodeBody s v hs es rs
     True  => {content := encodeVia v e} rs |> setContentType e |> setStatus s
 
 --------------------------------------------------------------------------------
@@ -81,19 +81,19 @@ encErr : All (EncodeVia RequestErr) [JSON, Text]
 encErr = %search
 
 export
-fromError : Request -> HSum [RequestErr] -> Response
-fromError r (Here $ re@(RE st err _ _ _)) =
- let u := maybe "" toString $ requestURI r.headers
-  in encodeBody (MkStatus st err) ({path := u} re) r encErr empty
+fromError : Headers -> RequestErr -> Response
+fromError hs re@(RE st err _ _ _) =
+ let u := maybe "" toString $ requestPath hs
+  in encodeBody (MkStatus st err) ({path := u} re) hs encErr empty
 
 export
-fromStatus : Request -> Status -> Response
-fromStatus r s = fromError r (Here $ requestErr s)
+fromStatus : Headers -> Status -> Response
+fromStatus hs = fromError hs . requestErr
 
 export
-notFound : Request -> Response
-notFound r = fromStatus r notFound404
+notFound : Headers -> Response
+notFound hs = fromStatus hs notFound404
 
 export
-forbidden : Request -> Response
-forbidden r = fromStatus r forbidden403
+forbidden : Headers -> Response
+forbidden hs = fromStatus hs forbidden403

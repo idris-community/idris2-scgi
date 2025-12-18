@@ -55,7 +55,7 @@ parameters {auto log : Logger}
   getUsers : Handler (List User)
   getUsers = (<>> []) <$> readref users
 
-  server : Request -> SCGIProg [] Response
+  server : Request -> Handler Response
   server =
     serveAll MyServer
       [ inc

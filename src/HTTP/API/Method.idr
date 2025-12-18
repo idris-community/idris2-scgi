@@ -53,7 +53,7 @@ PUT' = M' "PUT"
 
 canUseMethod : All (EncodeVia t) ts -> Request -> Handler (HList [])
 canUseMethod a r =
-  case any (acceptsMedia r) (forget $ mapProperty (\x => mediaType @{x}) a) of
+  case any (acceptsMedia r.headers) (forget $ mapProperty (\x => mediaType @{x}) a) of
     True  => pure []
     False => throw $ requestErr unsupportedMediaType415
 
@@ -64,7 +64,7 @@ public export
   outs     = %search
   canHandle (M m _) r = Just m == lookup "REQUEST_METHOD" r.headers
   fromRequest m r = canUseMethod all r
-  adjResponse m [v] req = pure . encodeBody m.status v req all
+  adjResponse m [v] req = pure . encodeBody m.status v req.headers all
 
 public export
 Serve Method' where
