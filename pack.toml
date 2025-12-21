@@ -10,12 +10,12 @@ ipkg   = "scgi-example.ipkg"
 
 [custom.all.http-types]
 type   = "git"
-url    = "git@github.com:stefan-hoeck/idris2-http-types.git"
+url    = "https://github.com/stefan-hoeck/idris2-http-types.git"
 commit = "latest:main"
 ipkg   = "http-types.ipkg"
 
 [custom.all.http-server-api]
 type   = "git"
-url    = "git@github.com:stefan-hoeck/idris2-http-types.git"
+url    = "https://github.com/stefan-hoeck/idris2-http-types.git"
 commit = "latest:main"
 ipkg   = "http-server-api/http-server-api.ipkg"
