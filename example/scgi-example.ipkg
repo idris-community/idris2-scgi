@@ -5,6 +5,7 @@ brief      = "Example SGCI application"
 version    = 0.7.0
 sourcedir  = "src"
 depends    = scgi
+           , barbies
 
 main       = Main
 executable = "scgi-example"

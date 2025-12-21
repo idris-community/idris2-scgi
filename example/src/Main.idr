@@ -1,5 +1,6 @@
 module Main
 
+import Book
 import Data.Vect
 import IO.Async.Loop.Epoll
 import Network.SCGI
@@ -8,9 +9,6 @@ import User
 
 %default total
 %hide Data.Linear.(.)
-
-SCGI : (ps : List Part) -> ReqPath
-SCGI ps = Path ("scgi-example"::ps)
 
 0 MyServer : Endpoints
 MyServer =
@@ -22,11 +20,12 @@ MyServer =
   , [SCGI ["users","add1"], JSONContent User, Post']
   , [SCGI ["users","add"], JSONContent (List User), Post']
   , [SCGI ["users"], Get [TSV,CSV,JSON] (List User)]
-  ]
+  ] ++ Books
 
 parameters {auto log : Logger}
            (tot      : IORef Nat)
            (users    : IORef (SnocList User))
+           (bks      : IORef (IDMap Book))
 
   inc : Nat -> Handler String
   inc x = pure "New number: \{show $ x+1}\n"
@@ -57,7 +56,7 @@ parameters {auto log : Logger}
 
   server : Request -> Handler Response
   server =
-    serveAll MyServer
+    serveAll MyServer $ 
       [ inc
       , add
       , sum
@@ -66,7 +65,7 @@ parameters {auto log : Logger}
       , addUser
       , addUsers
       , getUsers
-      ]
+      ] ++ books bks
 
 settings : Config -> List String
 settings c =
@@ -80,11 +79,12 @@ covering
 prog : HTTPProg [] ()
 prog =
   use [stdOut] $ \[console] => Prelude.do
-    let log := filter Debug $ colorConsoleLogger console
+    let log := filter Info $ colorConsoleLogger console
     traverse_ (\x => info x) (settings local)
     ref <- newref Z
     use <- newref [<]
-    serve local (server ref use)
+    bks <- newref empty
+    serve local (server ref use bks)
 
 covering
 main : IO ()
