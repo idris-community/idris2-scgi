@@ -30,6 +30,10 @@ public export
 0 IDMap : Type -> Type
 IDMap t = SortedMap (ID t) t
 
+public export
+0 IDList : Type -> Type
+IDList t = List (ID t, t)
+
 export %inline
 delval : ID v -> Lazy e -> IDMap v -> (IDMap v, Either e ())
 delval x err m =

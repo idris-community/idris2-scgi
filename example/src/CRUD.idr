@@ -1,10 +1,10 @@
 module CRUD
 
-import Data.Linear.Ref1
-import Data.SortedMap
-import HTTP.API.Server
-import ID
-import JSON.Simple
+import public Data.Linear.Ref1
+import public Data.SortedMap
+import public HTTP.API.Server
+import public ID
+import public JSON.Simple
 
 %default total
 
@@ -16,7 +16,7 @@ public export
 CRUDEndpoints : (0 new, val, patch : Type) -> (name : String) -> Endpoints
 CRUDEndpoints new val patch name =
   [ [SCGI [PStr name, Capture (ID val)], Get [JSON] val]
-  , [SCGI [PStr name], Get [JSON] (List val)]
+  , [SCGI [PStr $ name ++ "s"], Get [JSON] (IDList val)]
   , [SCGI [PStr name, Capture (ID val)], Delete]
   , [SCGI [PStr name, Capture (ID val)], JSONContent patch, Patch']
   , [SCGI [PStr name], JSONContent new, Post [JSON] (ID val)]
@@ -36,8 +36,8 @@ parameters (0 new, val, patch : Type)
     Just v <- lookup x <$> readref ref | _ => throw (requestErr notFound404)
     pure v
 
-  getVals : Handler (List val)
-  getVals = values <$> readref ref
+  getVals : Handler (IDList val)
+  getVals = kvList <$> readref ref
 
   deleteVal : ID val -> Handler ()
   deleteVal x =
