@@ -1,7 +1,7 @@
 module Network.SCGI.Logging
 
 import Derive.Prelude
-import Network.SCGI.Prog
+import HTTP.API.Server
 import Network.SCGI.Service
 import Text.ANSI
 
@@ -25,12 +25,12 @@ Interpolation LogLevel where interpolate = toLower . show
 public export
 record ConsoleOut where
   constructor MkConsoleOut
-  close_    : SCGIProg [] ()
-  putStr_   : String -> SCGIProg [] ()
-  putErr_   : String -> SCGIProg [] ()
+  close_    : HTTPProg [] ()
+  putStr_   : String -> HTTPProg [] ()
+  putErr_   : String -> HTTPProg [] ()
 
 export %inline
-Resource SCGIProg ConsoleOut where cleanup = close_
+Resource HTTPProg ConsoleOut where cleanup = close_
 
 parameters {default 100 capacity : Nat}
 
@@ -40,13 +40,13 @@ parameters {default 100 capacity : Nat}
   ||| in the background using an internal buffer that can hold up to
   ||| `capacity` messages.
   export covering
-  console : (putstr, puterr : String -> SCGIProg [] ()) -> SCGIProg es ConsoleOut
+  console : (putstr, puterr : String -> HTTPProg [] ()) -> HTTPProg es ConsoleOut
   console putstr puterr = do
     srv <- stateless (const ()) putPair
     pure $ MkConsoleOut (cleanup srv) (send srv . (True,)) (send srv . (False,))
 
     where
-      putPair : (Bool,String) -> SCGIProg [] ()
+      putPair : (Bool,String) -> HTTPProg [] ()
       putPair (True,s)  = putstr s
       putPair (False,s) = puterr s
 
@@ -56,53 +56,53 @@ parameters {default 100 capacity : Nat}
   |||       this uses a bounded channel with a buffer of the given
   |||       capacity internally.
   export covering
-  stdOut : SCGIProg es ConsoleOut
+  stdOut : HTTPProg es ConsoleOut
   stdOut = console stdout stderr
 
 parameters {auto con : ConsoleOut}
 
   ||| Put a string to the console's standard output.
   export %inline
-  cputStr : String -> SCGIProg es ()
+  cputStr : String -> HTTPProg es ()
   cputStr s = widenErrors $ con.putStr_ s
   
   ||| Put a string plus trailing line break
   ||| to the console's standard output.
   export %inline
-  cputStrLn : String -> SCGIProg es ()
+  cputStrLn : String -> HTTPProg es ()
   cputStrLn s = cputStr $ s ++ "\n"
   
   ||| Print a value to the console's standard output.
   export %inline
-  cprint : Show a => a -> SCGIProg es ()
+  cprint : Show a => a -> HTTPProg es ()
   cprint = cputStr . show
   
   ||| Print a value plus trailing lne break
   ||| to the console's standard output.
   export
-  cprintLn : Show a => a -> SCGIProg es ()
+  cprintLn : Show a => a -> HTTPProg es ()
   cprintLn = cputStrLn . show
   
   ||| Put a string to the console's error output.
   export
-  cputErr : String -> SCGIProg es ()
+  cputErr : String -> HTTPProg es ()
   cputErr s = widenErrors $ con.putErr_ s
   
   ||| Put a string plus trailing line break
   ||| to the console's error output.
   export
-  cputErrLn : String -> SCGIProg es ()
+  cputErrLn : String -> HTTPProg es ()
   cputErrLn s = cputErr $ s ++ "\n"
   
   ||| Print a value to the console's error output.
   export
-  cprintErr : Show a => a -> SCGIProg es ()
+  cprintErr : Show a => a -> HTTPProg es ()
   cprintErr = cputErr . show
   
   ||| Print a value plus trailing lne break
   ||| to the console's error output.
   export
-  cprintErrLn : Show a => a -> SCGIProg es ()
+  cprintErrLn : Show a => a -> HTTPProg es ()
   cprintErrLn = cputErrLn . show
 
 --------------------------------------------------------------------------------
@@ -112,7 +112,7 @@ parameters {auto con : ConsoleOut}
 public export
 record Logger where
   constructor MkLogger
-  log : LogLevel -> Lazy String -> SCGIProg [] ()
+  log : LogLevel -> Lazy String -> HTTPProg [] ()
 
 ||| Only log message of at least the given logging level.
 export
@@ -184,29 +184,29 @@ syslogLogger c = consoleLogger c $ \l,s => "<\{show $ severity l}> \{s}"
 parameters {auto lg  : Logger}
 
   export
-  log : LogLevel -> Lazy String -> SCGIProg es ()
+  log : LogLevel -> Lazy String -> HTTPProg es ()
   log l s = weakenErrors $ lg.log l s
   
   export %inline
-  trace : Lazy String -> SCGIProg es ()
+  trace : Lazy String -> HTTPProg es ()
   trace = log Trace
   
   export %inline
-  debug : Lazy String -> SCGIProg es ()
+  debug : Lazy String -> HTTPProg es ()
   debug = log Debug
   
   export %inline
-  info : Lazy String -> SCGIProg es ()
+  info : Lazy String -> HTTPProg es ()
   info = log Info
   
   export %inline
-  warn : Lazy String -> SCGIProg es ()
+  warn : Lazy String -> HTTPProg es ()
   warn = log Warning
   
   export %inline
-  error : Lazy String -> SCGIProg es ()
+  error : Lazy String -> HTTPProg es ()
   error = log Error
   
   export %inline
-  ierror : Interpolation a => a -> SCGIProg es ()
+  ierror : Interpolation a => a -> HTTPProg es ()
   ierror x = error (interpolate x)

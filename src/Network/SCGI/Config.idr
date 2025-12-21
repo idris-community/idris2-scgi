@@ -3,7 +3,6 @@ module Network.SCGI.Config
 import Data.ByteString
 import Data.Nat
 import Data.Vect
-import Network.SCGI.Error
 import Network.SCGI.Logging
 
 %default total

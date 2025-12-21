@@ -2,7 +2,7 @@ module User
 
 import Derive.Prelude
 import JSON.Simple.Derive
-import HTTP.API.Decode
+import HTTP.API
 import public JSON.Simple
 
 %default total

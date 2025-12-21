@@ -7,27 +7,9 @@ sourcedir  = "src"
 depends    = base         >= 0.7.0
            , ansi
            , async-epoll
-           , ilex
-           , json-simple
-           , streams-posix
+           , http-server-api
 
 modules = Network.SCGI
         , Network.SCGI.Config
-        , Network.SCGI.Error
         , Network.SCGI.Logging
-        , Network.SCGI.Prog
-        , Network.SCGI.Request
-        , Network.SCGI.Response
         , Network.SCGI.Service
-        , Network.SCGI.URI
-
-        , HTTP.API
-        , HTTP.API.Body
-        , HTTP.API.Decode
-        , HTTP.API.Encode
-        , HTTP.API.Error
-        , HTTP.API.Method
-        , HTTP.API.Path
-        , HTTP.API.Query
-        , HTTP.API.Serve
-        , HTTP.API.Status

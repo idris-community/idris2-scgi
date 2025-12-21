@@ -3,25 +3,25 @@ module Main
 import Data.Vect
 import IO.Async.Loop.Epoll
 import Network.SCGI
-import HTTP.API
+import HTTP.API.Server
 import User
 
 %default total
 %hide Data.Linear.(.)
 
-SCGI : (ps : List Part) -> RequestPath (PartsTypes ps)
+SCGI : (ps : List Part) -> ReqPath
 SCGI ps = Path ("scgi-example"::ps)
 
 0 MyServer : APIs
 MyServer =
-  [ [SCGI ["inc", Capture Nat], GET [Text] String]
-  , [SCGI ["add", Capture Nat], GET [Text] String]
-  , [SCGI ["sum", Capture (List Nat)], GET [Text] String]
-  , [SCGI ["hello", Capture String], GET [Text] String]
-  , [SCGI ["login"], Query ["user" ?? String, "password" ?? String], GET [Text] String]
-  , [SCGI ["users","add1"], Body [JSON] User, POST']
-  , [SCGI ["users","add"], Body [JSON] (List User), POST']
-  , [SCGI ["users"], GET [TSV,CSV,JSON] (List User)]
+  [ [SCGI ["inc", Capture Nat], Get [Text] String]
+  , [SCGI ["add", Capture Nat], Get [Text] String]
+  , [SCGI ["sum", Capture (List Nat)], Get [Text] String]
+  , [SCGI ["hello", Capture String], Get [Text] String]
+  , [SCGI ["login"], Query ["user" ?? String, "password" ?? String], Get [Text] String]
+  , [SCGI ["users","add1"], Body [JSON] User, Post']
+  , [SCGI ["users","add"], Body [JSON] (List User), Post']
+  , [SCGI ["users"], Get [TSV,CSV,JSON] (List User)]
   ]
 
 parameters {auto log : Logger}
@@ -77,10 +77,10 @@ settings c =
   ]
 
 covering
-prog : SCGIProg [] ()
+prog : HTTPProg [] ()
 prog =
   use [stdOut] $ \[console] => Prelude.do
-    let log := filter Info $ colorConsoleLogger console
+    let log := filter Debug $ colorConsoleLogger console
     traverse_ (\x => info x) (settings local)
     ref <- newref Z
     use <- newref [<]
