@@ -12,15 +12,15 @@ import User
 SCGI : (ps : List Part) -> ReqPath
 SCGI ps = Path ("scgi-example"::ps)
 
-0 MyServer : APIs
+0 MyServer : Endpoints
 MyServer =
   [ [SCGI ["inc", Capture Nat], Get [Text] String]
   , [SCGI ["add", Capture Nat], Get [Text] String]
   , [SCGI ["sum", Capture (List Nat)], Get [Text] String]
   , [SCGI ["hello", Capture String], Get [Text] String]
   , [SCGI ["login"], Query ["user" ?? String, "password" ?? String], Get [Text] String]
-  , [SCGI ["users","add1"], Body [JSON] User, Post']
-  , [SCGI ["users","add"], Body [JSON] (List User), Post']
+  , [SCGI ["users","add1"], JSONContent User, Post']
+  , [SCGI ["users","add"], JSONContent (List User), Post']
   , [SCGI ["users"], Get [TSV,CSV,JSON] (List User)]
   ]
 
