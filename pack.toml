@@ -8,8 +8,14 @@ type   = "local"
 path   = "example"
 ipkg   = "scgi-example.ipkg"
 
-[custom.all.bytestring]
+[custom.all.http-types]
 type   = "git"
-url    = "https://github.com/stefan-hoeck/idris2-bytestring"
+url    = "git@github.com:stefan-hoeck/idris2-http-types.git"
 commit = "latest:main"
-ipkg   = "bytestring.ipkg"
+ipkg   = "http-types.ipkg"
+
+[custom.all.http-server-api]
+type   = "git"
+url    = "git@github.com:stefan-hoeck/idris2-http-types.git"
+commit = "latest:main"
+ipkg   = "http-server-api/http-server-api.ipkg"
