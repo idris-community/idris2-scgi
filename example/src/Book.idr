@@ -52,4 +52,4 @@ Books = CRUDEndpoints NewBook Book ModBook "book"
 
 export
 books : IORef (IDMap Book) -> Server Books
-books = crudServer _ _ _ _ (\m,v => Right $ bzipWith upd m v) (\n,_ => Right n)
+books = crudServer (\m => Right . bzipWith upd m) (\n,_ => Right n)

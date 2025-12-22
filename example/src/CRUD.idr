@@ -22,8 +22,8 @@ CRUDEndpoints new val patch name =
   , [SCGI [PStr name], JSONContent new, Post [JSON] (ID val)]
   ]
 
-parameters (0 new, val, patch : Type)
-           (name     : String)
+parameters {0 new, val, patch : Type}
+           {name     : String}
            {auto tjv : ToJSON val}
            {auto fjn : FromJSON new}
            {auto fjp : FromJSON patch}
