@@ -12,4 +12,3 @@ depends    = base         >= 0.7.0
 modules = Network.SCGI
         , Network.SCGI.Config
         , Network.SCGI.Logging
-        , Network.SCGI.Service

@@ -2,7 +2,7 @@ module Network.SCGI.Logging
 
 import Derive.Prelude
 import HTTP.API.Server
-import Network.SCGI.Service
+import IO.Async.Service
 import Text.ANSI
 
 %default total
