@@ -11,6 +11,26 @@ import System
 
 %default total
 
+prettyNS : Integer -> String
+prettyNS n = "\{secs}\{msecs}\{usecs}\{nsecs}"
+  where
+    secs, msecs, usecs, nsecs : String
+    secs =
+      case n `div` 1_000_000_000 of
+        0 => ""
+        s => "\{show s} s "
+
+    msecs =
+      case n `div` 1_000_000 of
+        0 => ""
+        s => "\{show $ s `mod` 1000} ms "
+
+    usecs =
+      case n `div` 1_000 of
+        s => "\{show $ s `mod` 1000} us "
+
+    nsecs = "\{show $ n `mod` 1000} ns"
+
 --------------------------------------------------------------------------------
 -- Errors
 --------------------------------------------------------------------------------
@@ -152,13 +172,14 @@ serve c@(C a p _ _ co) run =
     send cli resp = writeTo cli (emits $ responseBytes resp)
 
     doServe : Socket AF_INET -> HTTPProg [] ()
-    doServe cli =
-      mpull $ finally (close' cli) $ handle handlers $
-        extractErr RequestErr (request' cli) >>= \case
-          Left x  => logErr x >> send cli (fromError Nothing emptyHeaders x)
-          Right req => exec (weakenErrors $ extractErr RequestErr $ run req) >>= \case
-            Left x  => logErr x >> send cli (fromError (Just req.uri) req.headers x)
-            Right resp => send cli resp
+    doServe cli = Prelude.do
+      d <- delta $ mpull $ finally (close' cli) $ handle handlers $
+             extractErr RequestErr (request' cli) >>= \case
+               Left x  => logErr x >> send cli (fromError Nothing emptyHeaders x)
+               Right req => exec (weakenErrors $ extractErr RequestErr $ run req) >>= \case
+                 Left x  => logErr x >> send cli (fromError (Just req.uri) req.headers x)
+                 Right resp => send cli resp
+      debug "request served in \{prettyNS $ toNano d}"
 
 ||| Simplified version of `serve` used for wrapping a simple `IO`
 ||| converter.
