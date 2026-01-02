@@ -52,6 +52,10 @@ badRequest = requestErr badRequest400
 0 Bytes : List Type -> Type
 Bytes es = HTTPStream es ByteString
 
+queryLine : (ByteString,QueryVal) -> String
+queryLine (n,QVal v) = "\{n}: \{v}"
+queryLine (n,QEmpty) = "\{n}"
+
 --------------------------------------------------------------------------------
 -- Headers
 --------------------------------------------------------------------------------
@@ -134,7 +138,8 @@ parameters {auto conf : Config}
     cl          <- contentLength head
     m           <- parseRequestMethod head
     u           <- parseRequestURI head
-    exec $ info "Got a request at \{u} (\{show cl} bytes)"
+    exec $ info "Got a request at \{encodePath u} (\{show cl} bytes)"
+    exec $ debugML ("queries:" :: map queryLine u.queries)
     body        <- foldGet (:<) [<] (C.take cl $ C.drop 1 rem2)
     pure $ RQ m head u (fastConcat $ body <>> [])
 
