@@ -95,6 +95,7 @@ parameters {auto conf : Config}
   header n p =
        C.splitAt n p                  -- keep the given number of bytes
     |> C.split (0 ==)                 -- split them at 0
+    |> P.observe (traverse_ $ \x => debug "Header part: \{x}")
     |> P.foldPair (++) []             -- accumulated everything in a single list
     |> map (mapFst $ go emptyHeaders) -- put name-value pairs in a sorted map
 
