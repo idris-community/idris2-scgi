@@ -112,29 +112,29 @@ parameters {auto con : ConsoleOut}
 public export
 record Logger where
   constructor MkLogger
-  log : LogLevel -> Lazy String -> HTTPProg [] ()
+  logML : LogLevel -> Lazy (List String) -> HTTPProg [] ()
 
 ||| Only log message of at least the given logging level.
 export
 filter : LogLevel -> Logger -> Logger
 filter lvl x = MkLogger $ \l,s => case l >= lvl of
-  True  => x.log l s
+  True  => x.logML l s
   False => pure ()
 
 export
 Semigroup Logger where
-  x <+> y = MkLogger $ \l,s => x.log l s >> y.log l s
+  x <+> y = MkLogger $ \l,s => x.logML l s >> y.logML l s
 
 export
 Monoid Logger where
   neutral = MkLogger $ \_,_ => pure ()
 
 export
-consoleLogger : ConsoleOut -> (LogLevel -> Lazy String -> String) -> Logger
+consoleLogger : ConsoleOut -> (LogLevel -> String -> String) -> Logger
 consoleLogger c f =
   MkLogger $ \l,s => case l of
-    Error => c.putErr_ (f l s ++ "\n")
-    _     => c.putStr_ (f l s ++ "\n")
+    Error => for_ s $ \x => c.putErr_ (f l x ++ "\n")
+    _     => for_ s $ \x => c.putStr_ (f l x ++ "\n")
 
 export
 basicConsoleLogger : ConsoleOut -> Logger
@@ -185,7 +185,11 @@ parameters {auto lg  : Logger}
 
   export
   log : LogLevel -> Lazy String -> HTTPProg es ()
-  log l s = weakenErrors $ lg.log l s
+  log l s = weakenErrors $ lg.logML l [s]
+
+  export
+  logML : LogLevel -> Lazy (List String) -> HTTPProg es ()
+  logML l ss = weakenErrors $ lg.logML l ss 
   
   export %inline
   trace : Lazy String -> HTTPProg es ()
@@ -206,6 +210,26 @@ parameters {auto lg  : Logger}
   export %inline
   error : Lazy String -> HTTPProg es ()
   error = log Error
+  
+  export %inline
+  traceML : Lazy (List String) -> HTTPProg es ()
+  traceML = logML Trace
+  
+  export %inline
+  debugML : Lazy (List String) -> HTTPProg es ()
+  debugML = logML Debug
+  
+  export %inline
+  infoML : Lazy (List String) -> HTTPProg es ()
+  infoML = logML Info
+  
+  export %inline
+  warnML : Lazy (List String) -> HTTPProg es ()
+  warnML = logML Warning
+  
+  export %inline
+  errorML : Lazy (List String) -> HTTPProg es ()
+  errorML = logML Error
   
   export %inline
   ierror : Interpolation a => a -> HTTPProg es ()

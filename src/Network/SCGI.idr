@@ -5,6 +5,7 @@ import public Network.SCGI.Config
 import public Network.SCGI.Logging
 
 import Data.SortedMap as SM
+import Data.String
 import FS.Socket
 import IO.Async.Loop.Epoll
 import System
@@ -115,7 +116,7 @@ parameters {auto conf : Config}
   header n p =
        C.splitAt n p                  -- keep the given number of bytes
     |> C.split (0 ==)                 -- split them at 0
-    |> P.observe (traverse_ $ \x => debug "Header part: \{x}")
+    |> P.observe (\xs => debugML $ map (\x => "Header part: \{x}") xs)
     |> P.foldPair (++) []             -- accumulated everything in a single list
     |> map (mapFst $ go emptyHeaders) -- put name-value pairs in a sorted map
 
@@ -129,7 +130,7 @@ parameters {auto conf : Config}
     (hsz, rem1) <- headerSize p
     when (hsz > conf.maxHeaderSize) (throw $ largeHeader conf.maxHeaderSize)
     (head,rem2) <- header hsz rem1
-    exec $ for_ (kvList head) $ \(k,v) => debug "\{k}: \{v}"
+    exec $ debugML ((\(k,v) => "\{k}: \{v}") <$> kvList head)
     cl          <- contentLength head
     m           <- parseRequestMethod head
     u           <- parseRequestURI head
@@ -138,15 +139,21 @@ parameters {auto conf : Config}
     pure $ RQ m head u (fastConcat $ body <>> [])
 
 logErr : Logger => RequestErr -> HTTPPull o es ()
-logErr re =
-  exec $ case re.path of
-    "" => Prelude.do
-      warn "Invalid request (status code \{show re.status}): \{re.error}"
-      warn "Message: \{re.message}"
-    u  => Prelude.do
-      info "Invalid request at \{u} (status code \{show re.status}): \{re.error}"
-      info "Message: \{re.message}"
-      when ("" /= re.details) $ info "Details: \{re.details}"
+logErr (RE s e m d p) =
+  exec $ if "" == p then warnML msgLines else infoML msgLines
+  where
+    msg, dts : List String
+    msg = if "" == m then [] else ["message: \{m}"]
+
+    dts = case d of
+      "" => []
+      _  => "details:" :: map (indent 2) (String.lines d)
+
+    msgLines : List String
+    msgLines =
+     let u := if "" == p then "" else "at \{p}"
+         m := "invalid request \{u} (status code \{show s}): \{e}"
+      in m :: msg ++ dts
 
 ||| This is the end of the world where we serve the
 ||| SCGI-application. All we need is a bit of information to get going:
