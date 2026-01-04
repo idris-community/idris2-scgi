@@ -2,6 +2,7 @@ module Main
 
 import Book
 import Data.Vect
+import IO.Async.Console
 import IO.Async.Loop.Epoll
 import Network.SCGI
 import HTTP.API.Server
@@ -22,7 +23,7 @@ MyServer =
   , [SCGI ["users"], Get [TSV,CSV,JSON] (List User)]
   ] ++ Books
 
-parameters {auto log : Logger}
+parameters {auto log : HTTPLogger}
            (tot      : IORef Nat)
            (users    : IORef (SnocList User))
            (bks      : IORef (IDMap Book))

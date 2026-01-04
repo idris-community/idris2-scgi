@@ -2,7 +2,7 @@ module Network.SCGI
 
 import public HTTP.API.Server
 import public Network.SCGI.Config
-import public Network.SCGI.Logging
+import public IO.Async.Logging
 
 import Data.SortedMap as SM
 import Data.String
@@ -11,6 +11,10 @@ import IO.Async.Loop.Epoll
 import System
 
 %default total
+
+public export
+0 HTTPLogger : Type
+HTTPLogger = Logger Poll
 
 prettyNS : Integer -> String
 prettyNS n = "\{secs}\{msecs}\{usecs}\{nsecs}"
@@ -85,7 +89,7 @@ scgiHeader n v hs =
 
 parameters {auto conf : Config}
            {auto has  : Has RequestErr es}
-           {auto log  : Logger}
+           {auto log  : HTTPLogger}
 
   contentLength : Headers -> HTTPPull o es Nat
   contentLength hs =
@@ -143,7 +147,7 @@ parameters {auto conf : Config}
     body        <- foldGet (:<) [<] (C.take cl $ C.drop 1 rem2)
     pure $ RQ m head u (fastConcat $ body <>> [])
 
-logErr : Logger => RequestErr -> HTTPPull o es ()
+logErr : HTTPLogger => RequestErr -> HTTPPull o es ()
 logErr (RE s e m d p) =
   exec $ if "" == p then warnML msgLines else infoML msgLines
   where
@@ -167,7 +171,7 @@ logErr (RE s e m d p) =
 ||| @ run      : core SCGI application converting SCGI request to
 |||              HTTP responses
 export covering
-serve : Logger => Config -> (Request -> Handler Response) -> HTTPProg [] ()
+serve : HTTPLogger => Config -> (Request -> Handler Response) -> HTTPProg [] ()
 serve c@(C a p _ _ co) run =
   mpull $ handle handlers $ 
     foreachPar co doServe (acceptOn AF_INET SOCK_STREAM $ IP4 a p)
@@ -199,5 +203,5 @@ serve c@(C a p _ _ co) run =
 ||| Don't use this if you are planning to serve more than a handful
 ||| connections concurrently.
 export covering
-serveIO : Logger => Config -> (Request -> IO Response) -> IO ()
+serveIO : HTTPLogger => Config -> (Request -> IO Response) -> IO ()
 serveIO c run = simpleApp (serve c $ liftIO . run)
