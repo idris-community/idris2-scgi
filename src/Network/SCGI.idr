@@ -2,7 +2,6 @@ module Network.SCGI
 
 import public HTTP.API.Server
 import public Network.SCGI.Config
-import public IO.Async.Logging
 
 import Data.SortedMap as SM
 import Data.String
@@ -11,10 +10,6 @@ import IO.Async.Loop.Epoll
 import System
 
 %default total
-
-public export
-0 HTTPLogger : Type
-HTTPLogger = Logger Poll
 
 prettyNS : Integer -> String
 prettyNS n = "\{secs}\{msecs}\{usecs}\{nsecs}"
