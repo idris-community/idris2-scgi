@@ -59,28 +59,30 @@ queryLine (n,QEmpty) = "\{n}"
 -- Headers
 --------------------------------------------------------------------------------
 
-CONTENT_LENGTH : ByteString
+CONTENT_LENGTH : String
 CONTENT_LENGTH = "CONTENT_LENGTH"
 
-REQUEST_URI : ByteString
+REQUEST_URI : String
 REQUEST_URI = "REQUEST_URI"
 
-REQUEST_METHOD : ByteString
+REQUEST_METHOD : String
 REQUEST_METHOD = "REQUEST_METHOD"
 
-CONTENT_TYPE : ByteString
+CONTENT_TYPE : String
 CONTENT_TYPE = "CONTENT_TYPE"
 
 HTTP_PRE : ByteString
 HTTP_PRE = "HTTP_"
 
-scgiHeader : ByteString -> ByteString -> Headers -> Headers
+adjhname : ByteString -> String
+adjhname bs =
+  ByteString.toString $ if HTTP_PRE `isPrefixOf` bs then drop (size HTTP_PRE) bs else bs
+
+scgiHeader : String -> ByteString -> Headers -> Headers
 scgiHeader n v hs =
-  if HTTP_PRE `isPrefixOf` n then insertHeader (drop 5 n) v hs
-  else if n == CONTENT_LENGTH then insertHeader Content_Size v hs
+  if      n == CONTENT_LENGTH then insertHeader Content_Length v hs
   else if n == CONTENT_TYPE then insertHeader Content_Type v hs
-  else if n == REQUEST_URI || n == REQUEST_METHOD then insertHeader n v hs
-  else hs
+  else insertHeader n v hs
 
 parameters {auto conf : Config}
            {auto has  : Has RequestErr es}
@@ -88,7 +90,7 @@ parameters {auto conf : Config}
 
   contentLength : Headers -> HTTPPull o es Nat
   contentLength hs =
-   let c := contentSize hs
+   let c := contentLength hs
     in case c > conf.maxMsgSize of
          False => pure c
          True  => throw (largeBody conf.maxMsgSize)
@@ -125,7 +127,7 @@ parameters {auto conf : Config}
 
     where
       go : Headers -> List ByteString -> Headers
-      go hs (x::y::t) = go (scgiHeader x y hs) t
+      go hs (x::y::t) = go (scgiHeader (adjhname x) y hs) t
       go hs _         = hs
 
   request : Bytes es -> HTTPPull o es Request
