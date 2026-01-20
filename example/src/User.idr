@@ -36,10 +36,10 @@ export
 EncodeVia (List User) TSV where
   encodeAs  = MkTSV . sepLines "\t"
   toBytes   = lines
-  mediaType = "text/tab-separated-values"
+  mediaType = MT "text" "tab-separated-values"
 
 export
 EncodeVia (List User) CSV where
   encodeAs  = MkCSV . sepLines ","
   toBytes   = lines
-  mediaType = "text/csv"
+  mediaType = MT "text" "csv"
