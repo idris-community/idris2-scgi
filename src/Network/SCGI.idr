@@ -121,7 +121,7 @@ parameters {auto conf : Config}
   header n p =
        C.splitAt n p                  -- keep the given number of bytes
     |> C.split (0 ==)                 -- split them at 0
-    |> P.observe (\xs => debugML $ map (\x => "Header part: \{x}") xs)
+    |> P.observe (\xs => traceML $ map (\x => "Header part: \{x}") xs)
     |> P.foldPair (++) []             -- accumulated everything in a single list
     |> map (mapFst $ go emptyHeaders) -- put name-value pairs in a sorted map
 
@@ -139,7 +139,7 @@ parameters {auto conf : Config}
     cl          <- contentLength head
     m           <- parseRequestMethod head
     u           <- parseRequestURI head
-    exec $ info "Got a request at \{encodePath u} (\{show cl} bytes)"
+    exec $ info "Got a \{show m} request at \{encodePath u} (\{show cl} bytes)"
     exec $ debugML ("queries:" :: map queryLine u.queries)
     body        <- foldGet (:<) [<] (C.take cl $ C.drop 1 rem2)
     pure $ RQ m head u (fastConcat $ body <>> [])
