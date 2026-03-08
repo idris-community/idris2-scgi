@@ -161,44 +161,60 @@ logErr (RE s e m d p) =
          m := "invalid request \{u} (status code \{show s}): \{e}"
       in m :: msg ++ dts
 
-||| This is the end of the world where we serve the
-||| SCGI-application. All we need is a bit of information to get going:
-|||
-||| @ config   : application configuration
-||| @ run      : core SCGI application converting SCGI request to
-|||              HTTP responses
-export covering
-serve : HTTPLogger => Config -> (Request -> Handler Response) -> HTTPProg [] ()
-serve c@(C a p _ _ co) run =
-  mpull $ handle handlers $ 
-    foreachPar co doServe (acceptOn AF_INET SOCK_STREAM $ IP4 a p)
+parameters {auto log : HTTPLogger}
 
-  where
-    handlers : All (\e => e -> HTTPPull Void [] ())  [Errno]
-    handlers = [exec . ierror]
+  ||| An empty stream used for receiving requests and sending
+  ||| responses. This can be `merged` with other streams that are used, for
+  ||| instance, for maintenance reasons such as repeating timers and
+  ||| so on.
+  |||
+  ||| @ config   : application configuration
+  ||| @ run      : core SCGI application converting SCGI request to
+  |||              HTTP responses
+  export
+  serveStream : Config -> (Request -> Handler Response) -> HTTPStream [] Void
+  serveStream c@(C a p _ _ co) run =
+    handle handlers $ 
+      parBind co doServe (acceptOn AF_INET SOCK_STREAM $ IP4 a p)
 
-    %inline
-    request' : Socket AF_INET -> HTTPPull o [RequestErr,Errno] Request 
-    request' cli = request $ bytes cli 0xffff
+    where
+      handlers : All (\e => e -> HTTPPull Void [] ())  [Errno]
+      handlers = [exec . ierror]
 
-    send : Socket AF_INET -> Response -> HTTPStream [Errno] Void
-    send cli resp = writeTo cli (emits $ responseBytes resp)
+      %inline
+      request' : Socket AF_INET -> HTTPPull o [RequestErr,Errno] Request 
+      request' cli = request $ bytes cli 0xffff
 
-    doServe : Socket AF_INET -> HTTPProg [] ()
-    doServe cli = Prelude.do
-      d <- delta $ mpull $ finally (close' cli) $ handle handlers $
-             extractErr RequestErr (request' cli) >>= \case
-               Left x  => logErr x >> send cli (fromError Nothing emptyHeaders x)
-               Right req => exec (weakenErrors $ extractErr RequestErr $ run req) >>= \case
-                 Left x  => logErr x >> send cli (fromError (Just req.uri) req.headers x)
-                 Right resp => send cli resp
-      debug "request served in \{prettyNS $ toNano d}"
+      send : Socket AF_INET -> Response -> HTTPStream [Errno] Void
+      send cli resp = writeTo cli (emits $ responseBytes resp)
 
-||| Simplified version of `serve` used for wrapping a simple `IO`
-||| converter.
-|||
-||| Don't use this if you are planning to serve more than a handful
-||| connections concurrently.
-export covering
-serveIO : HTTPLogger => Config -> (Request -> IO Response) -> IO ()
-serveIO c run = simpleApp (serve c $ liftIO . run)
+      doServe : Socket AF_INET -> HTTPStream [Errno] Void
+      doServe cli = weakenErrors $ Prelude.do
+        c1 <- liftIO $ clockTime Monotonic
+        d  <- finally (close' cli) $ handle handlers $
+                extractErr RequestErr (request' cli) >>= \case
+                  Left x  => logErr x >> send cli (fromError Nothing emptyHeaders x)
+                  Right req => exec (weakenErrors $ extractErr RequestErr $ run req) >>= \case
+                    Left x  => logErr x >> send cli (fromError (Just req.uri) req.headers x)
+                    Right resp => send cli resp
+        c2 <- liftIO $ clockTime Monotonic
+        exec $ debug "request served in \{prettyNS $ toNano $ timeDifference c2 c1}"
+
+  ||| This is the end of the world where we serve the
+  ||| SCGI-application. All we need is a bit of information to get going:
+  |||
+  ||| @ config   : application configuration
+  ||| @ run      : core SCGI application converting SCGI request to
+  |||              HTTP responses
+  export covering
+  serve : Config -> (Request -> Handler Response) -> HTTPProg [] ()
+  serve c run = mpull (serveStream c run)
+
+  ||| Simplified version of `serve` used for wrapping a simple `IO`
+  ||| converter.
+  |||
+  ||| Don't use this if you are planning to serve more than a handful
+  ||| connections concurrently.
+  export covering
+  serveIO : Config -> (Request -> IO Response) -> IO ()
+  serveIO c run = simpleApp (serve c $ liftIO . run)
