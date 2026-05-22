@@ -8,26 +8,8 @@ type   = "local"
 path   = "example"
 ipkg   = "scgi-example.ipkg"
 
-[custom.all.async]
-type   = "git"
-url    = "https://github.com/stefan-hoeck/idris2-async.git"
-commit = "latest:main"
-ipkg   = "async.ipkg"
-
-[custom.all.async-posix]
-type   = "git"
-url    = "https://github.com/stefan-hoeck/idris2-async.git"
-commit = "latest:main"
-ipkg   = "async-posix/async-posix.ipkg"
-
-[custom.all.http-types]
-type   = "git"
-url    = "https://github.com/stefan-hoeck/idris2-http-types.git"
-commit = "latest:main"
-ipkg   = "http-types.ipkg"
-
-[custom.all.http-server-api]
-type   = "git"
-url    = "https://github.com/stefan-hoeck/idris2-http-types.git"
-commit = "latest:main"
-ipkg   = "http-server-api/http-server-api.ipkg"
+[custom.all]
+async.commit           = "latest:main"
+async-posix.commit     = "latest:main"
+http-types.commit      = "latest:main"
+http-server-api.commit = "latest:main"
