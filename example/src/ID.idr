@@ -3,6 +3,7 @@ module ID
 import Data.SortedMap
 import Derive.Prelude
 import HTTP.API.Decode
+import HTTP.I18n
 import JSON.Simple.Derive
 
 %default total
@@ -22,9 +23,10 @@ next m =
     Nothing         => MkID 0
     Just (MkID v,_) => MkID (1+v)
 
-export
-Decode (ID t) where
-  decode = map MkID . decode
+parameters {auto loc : HTTPLocal}
+  export
+  Decode (ID t) where
+    decode = map MkID . decode
 
 public export
 0 IDMap : Type -> Type
