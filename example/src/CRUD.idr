@@ -3,6 +3,7 @@ module CRUD
 import public Data.Linear.Ref1
 import public Data.SortedMap
 import public HTTP.API.Server
+import public HTTP.I18n
 import public ID
 import public JSON.Simple
 
@@ -27,6 +28,7 @@ parameters {0 new, val, patch : Type}
            {auto tjv : ToJSON val}
            {auto fjn : FromJSON new}
            {auto fjp : FromJSON patch}
+           {auto loc : HTTPLocal}
            (doPatch  : patch -> val -> Either RequestErr val)
            (mkVal    : new -> ID val -> Either RequestErr val)
            (ref      : IORef (IDMap val))

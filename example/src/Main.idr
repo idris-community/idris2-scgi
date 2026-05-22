@@ -6,6 +6,7 @@ import IO.Async.Console
 import IO.Async.Loop.Epoll
 import Network.SCGI
 import HTTP.API.Server
+import HTTP.I18n.EN
 import User
 
 %default total

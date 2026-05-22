@@ -162,6 +162,7 @@ logErr (RE s e m d p) =
       in m :: msg ++ dts
 
 parameters {auto log : HTTPLogger}
+           {auto loc : HTTPLocal}
 
   ||| An empty stream used for receiving requests and sending
   ||| responses. This can be `merged` with other streams that are used, for

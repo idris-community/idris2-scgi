@@ -51,5 +51,5 @@ Books : Endpoints
 Books = CRUDEndpoints NewBook Book ModBook "book"
 
 export
-books : IORef (IDMap Book) -> Server Books
+books : HTTPLocal => IORef (IDMap Book) -> Server Books
 books = crudServer (\m => Right . bzipWith upd m) (\n,_ => Right n)
