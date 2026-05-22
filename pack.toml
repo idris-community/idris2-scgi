@@ -11,5 +11,5 @@ ipkg   = "scgi-example.ipkg"
 [custom.all]
 async.commit           = "latest:main"
 async-posix.commit     = "latest:main"
-http-types.commit      = "latest:main"
-http-server-api.commit = "latest:main"
+http-types.commit      = "latest:i18n"
+http-server-api.commit = "latest:i18n"
