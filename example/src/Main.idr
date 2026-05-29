@@ -25,6 +25,7 @@ MyServer =
   ] ++ Books
 
 parameters {auto log : HTTPLogger}
+           {auto loc : HTTPLocal}
            (tot      : IORef Nat)
            (users    : IORef (SnocList User))
            (bks      : IORef (IDMap Book))
@@ -78,7 +79,7 @@ settings c =
   ]
 
 covering
-prog : HTTPProg [] ()
+prog : HTTPLocal => HTTPProg [] ()
 prog =
   use [stdOut] $ \[console] => Prelude.do
     let log := filter Info $ colorConsoleLogger console
@@ -90,4 +91,4 @@ prog =
 
 covering
 main : IO ()
-main = epollApp prog
+main = epollApp (prog @{HTTPEN})
