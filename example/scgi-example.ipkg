@@ -6,6 +6,7 @@ version    = 0.7.0
 sourcedir  = "src"
 depends    = scgi
            , barbies
+           , async-epoll
 
 main       = Main
 executable = "scgi-example"

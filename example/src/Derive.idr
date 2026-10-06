@@ -14,7 +14,7 @@ jsonOptions =
   MkOptions {
     sum                        = ObjectWithSingleField
   , unwrapUnary                = False
-  , replaceMissingKeysWithNull = True
+  , replaceMissingKeysWithNull = const True
   , unwrapRecords              = True
   , constructorTagModifier     = id
   , fieldNameModifier          = id
