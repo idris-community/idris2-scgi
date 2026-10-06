@@ -6,7 +6,6 @@ import public Network.SCGI.Config
 import Data.SortedMap as SM
 import Data.String
 import FS.Socket
-import IO.Async.Loop.Epoll
 import System
 
 %default total

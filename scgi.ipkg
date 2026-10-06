@@ -6,7 +6,7 @@ version    = 0.7.0
 sourcedir  = "src"
 depends    = base         >= 0.7.0
            , ansi
-           , async-epoll
+           , async-posix
            , http-server-api
 
 modules = Network.SCGI
