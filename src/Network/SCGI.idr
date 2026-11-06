@@ -1,5 +1,6 @@
 module Network.SCGI
 
+import JSON.Parser
 import public HTTP.API.Server
 import public Network.SCGI.Config
 
@@ -151,8 +152,10 @@ logErr (RE s e m d p) =
     msg = if "" == m then [] else ["message: \{m}"]
 
     dts = case d of
-      "" => []
-      _  => "details:" :: map (indent 2) (String.lines d)
+      Right ""    => []
+      Right s     => "details:" :: map (indent 2) (String.lines s)
+      Left  JNull => []
+      Left  s     => ["details: \{show s}"]
 
     msgLines : List String
     msgLines =
